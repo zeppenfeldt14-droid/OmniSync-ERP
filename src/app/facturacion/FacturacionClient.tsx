@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, Search, Clock, Download, CheckCircle2 } from 'lucide-react'
+import { FileText, Search, Clock, Download, CheckCircle2, Eye, Trash2 } from 'lucide-react'
 import SharedPeriodFilter from '@/components/SharedPeriodFilter'
+import { PedidoDetalleModal } from '@/components/PedidoDetalleModal'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { formatDate } from '@/lib/date'
@@ -18,6 +19,7 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
   const [busqueda, setBusqueda] = useState('')
   const [selectedPeriod, setSelectedPeriod] = useState<string>('mes')
   const [selectedEstado, setSelectedEstado] = useState('todos') // 'todos', 'aprobado', 'facturado'
+  const [selectedPedido, setSelectedPedido] = useState<any>(null)
 
   const fetchPedidos = async () => {
     try {
@@ -88,6 +90,15 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
     } catch (e) {
       alert('Error al actualizar')
     }
+  }
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('¿ELIMINAR DEFINITIVAMENTE este pedido del sistema? Esta acción no se puede deshacer.')) return
+    try {
+      const res = await fetch(`/api/pedidos/${id}`, { method: 'DELETE' })
+      if (res.ok) await fetchPedidos()
+      else { const d = await res.json(); alert(d.error) }
+    } catch { alert('Error de conexión') }
   }
 
   const handleDownloadPDF = async (pedidoId: number, tipo: 'A' | 'X') => {
@@ -390,6 +401,14 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {/* Ver detalles */}
+                        <button
+                          onClick={() => setSelectedPedido(p)}
+                          className="btn-action text-secondary border-white/5 hover:bg-white/5"
+                          title="Ver detalles"
+                        >
+                          <Eye size={12} />
+                        </button>
                         {userNivel < 3 && p.estado === 'aprobado' && (
                           <button
                             onClick={() => handleMarcarFacturado(p.id)}
@@ -417,6 +436,16 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
                           <span className="text-[10px] font-bold">X</span>
                           <Download size={12} className="ml-1" />
                         </button>
+                        {/* Eliminar (Solo Nivel 1) */}
+                        {userNivel === 1 && (
+                          <button
+                            onClick={() => handleDelete(p.id)}
+                            className="btn-action text-red-500 border-red-500/20 hover:bg-red-500/10"
+                            title="Eliminar pedido definitivamente"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -452,6 +481,12 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-white/5">
                   <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedPedido(p)}
+                      className="btn-action text-secondary border-white/5 hover:bg-white/5"
+                    >
+                      <Eye size={14} />
+                    </button>
                     {userNivel < 3 && p.estado === 'aprobado' && (
                       <button
                         onClick={() => handleMarcarFacturado(p.id)}
@@ -472,6 +507,14 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
                     >
                       <span className="font-bold text-[10px] mr-1">X</span> <Download size={14} />
                     </button>
+                    {userNivel === 1 && (
+                      <button
+                        onClick={() => handleDelete(p.id)}
+                        className="btn-action text-red-500 border-red-500/20 hover:bg-red-500/10"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                   <span className="text-secondary text-[10px]">{formatDate(p.creadoEn)}</span>
                 </div>
@@ -480,6 +523,12 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
           )}
         </div>
       </div>
+      {selectedPedido && (
+        <PedidoDetalleModal 
+          pedido={selectedPedido} 
+          onClose={() => setSelectedPedido(null)} 
+        />
+      )}
     </div>
   )
 }
