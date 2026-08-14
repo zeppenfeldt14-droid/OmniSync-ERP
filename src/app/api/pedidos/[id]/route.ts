@@ -42,7 +42,10 @@ export async function PATCH(request: Request, { params }: Params) {
     if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
     const { id } = await params
 
-    const pedido = await prisma.pedido.findUnique({ where: { id: Number(id) } })
+    const pedido = await prisma.pedido.findUnique({
+      where: { id: Number(id) },
+      include: { detalles: true }
+    })
     if (!pedido) return NextResponse.json({ error: 'Pedido no encontrado.' }, { status: 404 })
 
     const body = await request.json()
@@ -53,7 +56,7 @@ export async function PATCH(request: Request, { params }: Params) {
     // Nivel 1/2 pueden: pendiente_supervisor → aprobado | cancelado
 
     let nuevoEstado: string | null = null
-    let aprobadoPor: Partial<typeof pedido> = {}
+    let aprobadoPor: any = {}
 
     if (accion === 'enviar') {
       if (pedido.estado !== 'borrador' && pedido.estado !== 'presupuesto')
