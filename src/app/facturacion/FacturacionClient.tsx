@@ -213,8 +213,8 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
                 padding: '40px', 
                 color: '#000', 
                 background: 'white', 
-                width: '800px', 
-                minHeight: '1131px', 
+                width: '794px', 
+                height: '1123px', 
                 boxSizing: 'border-box',
                 position: 'relative'
               }}
@@ -298,13 +298,13 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #ddd' }}>
-                    <th style={{ padding: '8px 0', textAlign: 'left', fontWeight: 'bold' }}>Código</th>
-                    <th style={{ padding: '8px 0', textAlign: 'left', fontWeight: 'bold' }}>Descripcion</th>
-                    <th style={{ padding: '8px 0', textAlign: 'center', fontWeight: 'bold' }}>Cantidad</th>
-                    <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>Precio unitario</th>
-                    <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>Bonif.</th>
-                    <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>IVA</th>
-                    <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>Importe</th>
+                    <th style={{ padding: '8px 0', textAlign: 'left', fontWeight: 'bold', width: '10%' }}>Código</th>
+                    <th style={{ padding: '8px 0', textAlign: 'left', fontWeight: 'bold', width: '45%' }}>Descripcion</th>
+                    <th style={{ padding: '8px 0', textAlign: 'center', fontWeight: 'bold', width: '8%' }}>Cantidad</th>
+                    <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold', width: '12%' }}>Precio unitario</th>
+                    <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold', width: '12%' }}>Bonif.</th>
+                    <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold', width: '5%' }}>IVA</th>
+                    <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold', width: '8%' }}>Importe</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -321,7 +321,7 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
                         <td style={{ padding: '8px 0', textAlign: 'left', maxWidth: '300px' }}>{desc}</td>
                         <td style={{ padding: '8px 0', textAlign: 'center' }}>{q.toFixed(2)}</td>
                         <td style={{ padding: '8px 0', textAlign: 'right' }}>
-                          {d.esLineaBonus ? <span style={{textDecoration: 'line-through'}}>{fmt(unitPrice)}</span> : fmt(unitPrice)}
+                          {fmt(unitPrice)}
                         </td>
                         <td style={{ padding: '8px 0', textAlign: 'right' }}>{bonifText}</td>
                         <td style={{ padding: '8px 0', textAlign: 'right' }}>$ 0,00</td>
@@ -339,24 +339,24 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '20px' }}>
                     
                     <div style={{ width: '50%' }}>
-                      <table style={{ width: '80%', fontSize: '11px', textAlign: 'left' }}>
-                        <thead>
-                          <tr>
-                            <th style={{ fontWeight: 'normal', paddingBottom: '5px' }}>Bultos</th>
-                            <th style={{ fontWeight: 'normal', paddingBottom: '5px' }}>Pallets</th>
-                            <th style={{ fontWeight: 'normal', paddingBottom: '5px' }}>Peso (Kgs)</th>
-                            <th style={{ fontWeight: 'normal', paddingBottom: '5px' }}>Unidades</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td>{totalBultos}</td>
-                            <td>{pallets}</td>
-                            <td>0.00</td>
-                            <td>{totalUnidades}</td>
-                          </tr>
-                        </tbody>
-                      </table>
+                      <div style={{ display: 'flex', gap: '40px', fontSize: '11px', textAlign: 'left' }}>
+                        <div>
+                          <div style={{ marginBottom: '5px' }}>Bultos</div>
+                          <div>{totalBultos}</div>
+                        </div>
+                        <div>
+                          <div style={{ marginBottom: '5px' }}>Pallets</div>
+                          <div>{pallets}</div>
+                        </div>
+                        <div>
+                          <div style={{ marginBottom: '5px' }}>Peso (Kgs)</div>
+                          <div>0.00</div>
+                        </div>
+                        <div>
+                          <div style={{ marginBottom: '5px' }}>Unidades</div>
+                          <div>{totalUnidades}</div>
+                        </div>
+                      </div>
 
                       {isFacturaA && (
                         <div style={{ marginTop: '50px', display: 'flex', alignItems: 'flex-end', gap: '15px' }}>
