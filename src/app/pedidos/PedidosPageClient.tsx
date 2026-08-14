@@ -487,9 +487,7 @@ export function PedidosPageClient({ userNivel, userAlias, userZona, availableZon
                                 }
                                 return;
                               }
-                              setPedidoAprobar(p)
-                              setFechaEntrega('')
-                              setMetodoPagoB((p.metodoPagoB as any) || '')
+                              setSelectedPedido(p)
                             }}
                             disabled={actionId === p.id}
                             className={`btn-action ${
@@ -636,11 +634,9 @@ export function PedidosPageClient({ userNivel, userAlias, userZona, availableZon
                           }
                           return;
                         }
-                        setPedidoAprobar(p)
-                        setFechaEntrega('')
-                        setMetodoPagoB((p.metodoPagoB as any) || '')
+                        setSelectedPedido(p)
                       }}
-                      disabled={actionId === p.id}
+                        disabled={actionId === p.id}
                       className={`p-2 rounded-lg border ${
                         (p.tienePrecioNegociado || p.tieneTarifaNegociada) && userNivel === 2
                           ? 'bg-white/5 text-white/20 border-white/5 cursor-not-allowed'
@@ -684,97 +680,10 @@ export function PedidosPageClient({ userNivel, userAlias, userZona, availableZon
           pedido={selectedPedido} 
           onClose={() => setSelectedPedido(null)} 
           onStateChange={handleAction}
-          onRequestFacturar={() => {
-            setSelectedPedido(null)
-            setPedidoAprobar(selectedPedido)
-            setFechaEntrega('')
-            setMetodoPagoB((selectedPedido.metodoPagoB as any) || '')
-          }}
           userNivel={userNivel}
         />
       )}
 
-      {/* ── Modal: Selector de Fecha de Entrega ────────────────────────── */}
-      {pedidoAprobar && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0B0F19] border border-white/10 rounded-2xl max-w-md w-full flex flex-col shadow-2xl max-h-[90vh]">
-            <div className="p-6 border-b border-white/5 shrink-0">
-              <h3 className="text-white font-bold text-base flex items-center gap-2">
-                <Calendar size={18} className="text-primary" />
-                Día de Entrega del Pedido
-              </h3>
-              <p className="text-secondary text-xs mt-1">
-                Indicá la fecha estimada de entrega para el pedido <strong>{pedidoAprobar.numeroPedido}</strong>. El vendedor será notificado.
-              </p>
-            </div>
-
-              <div className="p-6 flex flex-col gap-5 overflow-y-auto">
-                <div className="form-group mb-0">
-                  <label className="form-label text-[10px] uppercase font-black text-secondary">Fecha de Entrega</label>
-                  <input
-                    type="date"
-                    value={fechaEntrega}
-                    onChange={e => setFechaEntrega(e.target.value)}
-                    className="form-input bg-black/40 border border-white/10 rounded-xl text-sm mt-1 w-full text-white"
-                    required
-                  />
-                </div>
-
-                {pedidoAprobar.porcentajePagoB > 0 && (
-                  <div className="form-group mb-0">
-                    <label className="form-label text-[10px] uppercase font-black text-secondary">
-                      Método de Pago (Parte B) *
-                    </label>
-                    <p className="text-secondary text-[9px] mb-1">
-                      Si seleccionas Transferencia se aplicará automáticamente un 3% de recargo sobre la Parte B.
-                    </p>
-                    <select
-                      value={metodoPagoB}
-                      onChange={e => setMetodoPagoB(e.target.value as any)}
-                      className="form-input bg-black/40 border border-white/10 rounded-xl text-sm w-full"
-                    >
-                      <option value="" className="bg-black text-white">Seleccionar...</option>
-                      <option value="efectivo" className="bg-black text-white">Efectivo</option>
-                      <option value="transferencia" className="bg-black text-white">Transferencia (+3%)</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-6 pt-0 flex items-center justify-end gap-3 mt-2 shrink-0">
-                <button
-                  onClick={() => {
-                    setPedidoAprobar(null)
-                    setFechaEntrega('')
-                    setMetodoPagoB('')
-                  }}
-                className="btn btn-secondary text-xs"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  if (!fechaEntrega) {
-                    alert('Por favor selecciona una fecha de entrega.')
-                    return
-                  }
-                  if (pedidoAprobar.porcentajePagoB > 0 && !metodoPagoB) {
-                    alert('Por favor selecciona el método de pago para la Parte B.')
-                    return
-                  }
-                  handleAction(pedidoAprobar.id, 'aprobar', { fechaEntrega, metodoPagoB })
-                  setPedidoAprobar(null)
-                  setFechaEntrega('')
-                  setMetodoPagoB('')
-                }}
-                className="btn btn-primary text-xs flex items-center gap-1.5"
-              >
-                <Check size={13} /> Aprobar Pedido
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
