@@ -76,6 +76,7 @@ export function NuevoPedidoClient({ userNivel, userAlias, userZona }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const editId = searchParams.get('edit')
+  const paramEmpresaId = searchParams.get('empresaId')
 
   // Data
   const [productos, setProductos]   = useState<Producto[]>([])
@@ -163,7 +164,10 @@ export function NuevoPedidoClient({ userNivel, userAlias, userZona }: Props) {
             if (orderToEdit) {
               // Populate order details
               const matchedEmpresa = empsList.find((e: any) => e.id === orderToEdit.empresaId)
-              if (matchedEmpresa) setEmpresaSeleccionada(matchedEmpresa)
+              if (matchedEmpresa) {
+                setEmpresaSeleccionada(matchedEmpresa)
+                setEmpresaBusqueda(matchedEmpresa.nombre)
+              }
               
               setNegociarTarifaVolumen(orderToEdit.tieneTarifaNegociada)
               setAplicaFinanciera(orderToEdit.aplicaFinanciera)
@@ -218,8 +222,15 @@ export function NuevoPedidoClient({ userNivel, userAlias, userZona }: Props) {
               setPromosSeleccionadas(selectedPromos)
             }
           }
-        } catch (err) {
-          console.error('Error fetching order to edit', err)
+        } catch (error) {
+          console.error(error)
+        }
+      } else if (paramEmpresaId) {
+        // Modo Nuevo Pedido pero con empresa preseleccionada desde la URL
+        const matchedEmpresa = empsList.find((e: any) => e.id === Number(paramEmpresaId))
+        if (matchedEmpresa) {
+          setEmpresaSeleccionada(matchedEmpresa)
+          setEmpresaBusqueda(matchedEmpresa.nombre)
         }
       }
 
