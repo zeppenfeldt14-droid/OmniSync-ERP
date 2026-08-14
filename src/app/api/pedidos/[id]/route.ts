@@ -115,6 +115,31 @@ export async function PATCH(request: Request, { params }: Params) {
           }
         }
       }
+    } else if (accion === 'confirmar_entrega') {
+      if (session.nivel > 2)
+        return NextResponse.json({ error: 'Sin permisos para confirmar entrega.' }, { status: 403 })
+      if (pedido.estado !== 'aprobado')
+        return NextResponse.json({ error: 'Solo se puede confirmar entrega en pedidos aprobados.' }, { status: 400 })
+
+      const fechaEntregaReal = body.fechaEntregaReal ? new Date(body.fechaEntregaReal) : new Date()
+
+      // Calcular días de plazo desde la condición de pago (ej: '30 días' → 30)
+      const plazoMatch = (pedido.condicionPago || '').match(/\d+/)
+      const plazoDias = plazoMatch ? parseInt(plazoMatch[0]) : 30
+      const fechaVencimiento = new Date(fechaEntregaReal)
+      fechaVencimiento.setDate(fechaVencimiento.getDate() + plazoDias)
+
+      // Activar las cobranzas retenidas de este pedido
+      await prisma.cobranza.updateMany({
+        where: { pedidoId: Number(id), estado: 'retenida' },
+        data: {
+          estado: 'pendiente',
+          fechaConfirmacionEntrega: fechaEntregaReal,
+          fechaVencimiento,
+        }
+      })
+
+      nuevoEstado = 'entregado'
     } else if (accion === 'facturar') {
       if (session.nivel > 2)
         return NextResponse.json({ error: 'Sin permisos para facturar.' }, { status: 403 })
@@ -203,8 +228,8 @@ async function generarFacturasYCobranzas(pedido: any, alias: string) {
         saldoPendiente: totalA,
         cuota: 1,
         totalCuotas: 1,
-        estado: 'pendiente',
-        fechaVencimiento: pedido.fechaPagoA ? new Date(pedido.fechaPagoA) : null,
+        estado: 'retenida',
+        fechaVencimiento: null,
         tipoFactura: 'A',
         metodoPago: pedido.metodoPagoA,
       },
@@ -241,8 +266,8 @@ async function generarFacturasYCobranzas(pedido: any, alias: string) {
         saldoPendiente: totalB,
         cuota: 1,
         totalCuotas: 1,
-        estado: 'pendiente',
-        fechaVencimiento: pedido.fechaEntrega ? new Date(pedido.fechaEntrega) : null,
+        estado: 'retenida',
+        fechaVencimiento: null,
         tipoFactura: 'B',
         metodoPago: pedido.metodoPagoB,
       },

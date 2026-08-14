@@ -45,7 +45,7 @@ export function PedidoDetalleModal({ pedido, onClose, onStateChange, onRequestFa
   
   // Modal de Aprobación/Facturación
   const [showFacturaModal, setShowFacturaModal] = useState(false)
-  const [facturaSplits, setFacturaSplits] = useState<Record<number, { A: number, X: number }>>({})
+  const [facturaSplits, setFacturaSplits] = useState<Record<string, { A: number, X: number }>>({})
   const [fechaEntrega, setFechaEntrega] = useState(pedido.fechaEntrega ? new Date(pedido.fechaEntrega).toISOString().split('T')[0] : '')
   const [metodoPagoB, setMetodoPagoB] = useState('Efectivo')
 
@@ -500,12 +500,15 @@ export function PedidoDetalleModal({ pedido, onClose, onStateChange, onRequestFa
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] text-secondary uppercase font-bold mb-1">Fecha de Entrega</label>
-                  <input
-                    type="date"
-                    value={fechaEntrega}
-                    onChange={e => setFechaEntrega(e.target.value)}
-                    className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-primary"
-                  />
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={fechaEntrega}
+                      onChange={e => setFechaEntrega(e.target.value)}
+                      style={{ colorScheme: 'dark' }}
+                      className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-primary cursor-pointer"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] text-secondary uppercase font-bold mb-1">Modo de Pago (Remito)</label>
@@ -575,6 +578,67 @@ export function PedidoDetalleModal({ pedido, onClose, onStateChange, onRequestFa
                   )
                 })}
               </div>
+
+              {/* Sección Cajas Bonificadas (Promoción) */}
+              {pedido.detalles.some((l: any) => l.cajasBonus > 0) && (
+                <>
+                  <h3 className="text-yellow-400 font-bold text-xs mt-2 border-b border-yellow-400/20 pb-2 flex items-center gap-2">
+                    🎁 Cajas Bonificadas — Promoción (Bonif. 100%)
+                  </h3>
+                  <p className="text-secondary text-[10px] -mt-2">Por defecto van a Factura X (Remito). Editables para ajuste si es necesario.</p>
+                  <div className="flex flex-col gap-2">
+                    {pedido.detalles.filter((l: any) => l.cajasBonus > 0).map((l: any) => {
+                      const bonusSplit = facturaSplits[`bonus_${l.productoId}`] || { A: 0, X: l.cajasBonus }
+                      const bonusValid = bonusSplit.A + bonusSplit.X === l.cajasBonus
+                      return (
+                        <div key={`bonus_${l.productoId}`} className="p-3 rounded-xl border border-yellow-400/20 bg-yellow-400/5">
+                          <div className="flex flex-col md:flex-row justify-between md:items-center gap-3">
+                            <div className="flex flex-col flex-1">
+                              <span className="text-yellow-400 text-sm font-bold flex items-center gap-2">
+                                {l.productoNombre}
+                                <span className="bg-yellow-400/20 text-yellow-400 px-1.5 py-0.5 rounded text-[9px] font-black uppercase">Bonif. 100%</span>
+                              </span>
+                              <span className="text-secondary text-xs">Cajas bonus: <strong className="text-yellow-400">{l.cajasBonus} cajas</strong></span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                <label className="text-[10px] uppercase font-black text-secondary">Fact. A:</label>
+                                <input
+                                  type="number" min="0" max={l.cajasBonus}
+                                  value={bonusSplit.A}
+                                  onChange={e => {
+                                    const val = parseInt(e.target.value) || 0
+                                    setFacturaSplits(prev => ({
+                                      ...prev,
+                                      [`bonus_${l.productoId}`]: { A: val, X: l.cajasBonus - val }
+                                    }))
+                                  }}
+                                  className="w-16 bg-black border border-yellow-400/30 rounded-lg px-2 py-1 text-yellow-400 text-center text-sm focus:border-yellow-400 outline-none"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <label className="text-[10px] uppercase font-black text-secondary">Fact. X:</label>
+                                <input
+                                  type="number" min="0" max={l.cajasBonus}
+                                  value={bonusSplit.X}
+                                  onChange={e => {
+                                    const val = parseInt(e.target.value) || 0
+                                    setFacturaSplits(prev => ({
+                                      ...prev,
+                                      [`bonus_${l.productoId}`]: { A: l.cajasBonus - val, X: val }
+                                    }))
+                                  }}
+                                  className={`w-16 bg-black border rounded-lg px-2 py-1 text-center text-sm outline-none ${bonusValid ? 'border-yellow-400/30 text-yellow-400 focus:border-yellow-400' : 'border-red-500 text-red-400'}`}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="p-4 border-t border-white/10 flex justify-end gap-3 bg-black/50">

@@ -303,12 +303,13 @@ model Cobranza {
   saldoPendiente    Float
   cuota             Int                @default(1)
   totalCuotas       Int                @default(1)
-  fechaVencimiento  DateTime?
-  estado            String             @default("pendiente")
-  creadoEn          DateTime           @default(now())
-  actualizadoEn     DateTime           @updatedAt
-  metodoPago        String?
-  tipoFactura       String?
+  fechaVencimiento          DateTime?
+  estado                    String             @default("pendiente")
+  creadoEn                  DateTime           @default(now())
+  actualizadoEn             DateTime           @updatedAt
+  metodoPago                String?
+  tipoFactura               String?
+  fechaConfirmacionEntrega  DateTime?
   pedido            Pedido             @relation(fields: [pedidoId], references: [id])
   notasPlanificador NotaPlanificador[]
   pagos             Pago[]

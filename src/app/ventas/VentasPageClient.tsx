@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { TrendingUp, Globe, BarChart3, FileText, DollarSign, RefreshCw, Eye } from 'lucide-react'
+import { TrendingUp, Globe, BarChart3, FileText, DollarSign, RefreshCw, Eye, Truck, Calendar, CheckCircle2 } from 'lucide-react'
 import { PedidoDetalleModal } from '@/components/PedidoDetalleModal'
 import SharedPeriodFilter from '@/components/SharedPeriodFilter'
 import { formatDate } from '@/lib/date'
@@ -54,6 +54,11 @@ export function VentasPageClient({ userNivel, userAlias, userZona, availableZone
   const [selectedPedidoDetalle, setSelectedPedidoDetalle] = useState<any | null>(null)
   const [isFetchingPedido, setIsFetchingPedido] = useState<number | null>(null)
 
+  // Confirmación de entrega
+  const [pedidoEntrega, setPedidoEntrega] = useState<{ pedidoId: number; numero: string } | null>(null)
+  const [fechaEntregaReal, setFechaEntregaReal] = useState<string>(new Date().toISOString().split('T')[0])
+  const [confirmandoEntrega, setConfirmandoEntrega] = useState(false)
+
   const fetchDetallePedido = async (pedidoId: number) => {
     setIsFetchingPedido(pedidoId)
     try {
@@ -69,6 +74,31 @@ export function VentasPageClient({ userNivel, userAlias, userZona, availableZone
       alert('Error de red al cargar el pedido.')
     } finally {
       setIsFetchingPedido(null)
+    }
+  }
+
+  const handleConfirmarEntrega = async () => {
+    if (!pedidoEntrega || !fechaEntregaReal) return
+    setConfirmandoEntrega(true)
+    try {
+      const res = await fetch(`/api/pedidos/${pedidoEntrega.pedidoId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'confirmar_entrega', fechaEntregaReal })
+      })
+      if (res.ok) {
+        alert(`✅ Entrega confirmada para el pedido ${pedidoEntrega.numero}. Las cobranzas están ahora activas.`)
+        setPedidoEntrega(null)
+        fetchFacturas()
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Error al confirmar la entrega.')
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Error de red.')
+    } finally {
+      setConfirmandoEntrega(false)
     }
   }
 
@@ -334,18 +364,32 @@ export function VentasPageClient({ userNivel, userAlias, userZona, availableZone
                       {formatDate(f.creadoEn)}
                     </td>
                     <td className="px-3 py-3">
-                      <button
-                        onClick={() => fetchDetallePedido(f.pedidoId)}
-                        disabled={isFetchingPedido === f.pedidoId}
-                        className="btn-action text-secondary hover:text-white"
-                        title="Ver detalles del pedido"
-                      >
-                        {isFetchingPedido === f.pedidoId ? (
-                          <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Eye size={13} />
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => fetchDetallePedido(f.pedidoId)}
+                          disabled={isFetchingPedido === f.pedidoId}
+                          className="btn-action text-secondary hover:text-white"
+                          title="Ver detalles del pedido"
+                        >
+                          {isFetchingPedido === f.pedidoId ? (
+                            <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Eye size={13} />
+                          )}
+                        </button>
+                        {userNivel < 3 && f.pedido && (f.pedido as any).estado === 'aprobado' && (
+                          <button
+                            onClick={() => {
+                              setPedidoEntrega({ pedidoId: f.pedidoId, numero: f.pedido.numeroPedido })
+                              setFechaEntregaReal(new Date().toISOString().split('T')[0])
+                            }}
+                            className="btn-action text-green-400 border-green-400/20 hover:bg-green-400/10"
+                            title="Confirmar entrega de mercancía"
+                          >
+                            <Truck size={13} />
+                          </button>
                         )}
-                      </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -368,6 +412,60 @@ export function VentasPageClient({ userNivel, userAlias, userZona, availableZone
           pedido={selectedPedidoDetalle}
           onClose={() => setSelectedPedidoDetalle(null)}
         />
+      )}
+
+      {/* Modal: Confirmar Entrega de Mercancía */}
+      {pedidoEntrega && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-[#0B0F19] border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl flex flex-col">
+            <div className="p-5 border-b border-white/10 flex items-center gap-3">
+              <div className="p-2 bg-green-400/10 rounded-xl">
+                <Truck size={20} className="text-green-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-sm">Confirmar Entrega</h3>
+                <p className="text-secondary text-xs mt-0.5">Pedido: <strong className="text-primary">{pedidoEntrega.numero}</strong></p>
+              </div>
+            </div>
+            <div className="p-5 flex flex-col gap-4">
+              <p className="text-secondary text-xs leading-relaxed">
+                Al confirmar la entrega, las cobranzas de este pedido se activarán y el vencimiento se calculará desde esta fecha.
+              </p>
+              <div>
+                <label className="block text-[10px] text-secondary uppercase font-bold mb-1.5 flex items-center gap-1.5">
+                  <Calendar size={11} /> Fecha Real de Entrega
+                </label>
+                <input
+                  type="date"
+                  value={fechaEntregaReal}
+                  onChange={e => setFechaEntregaReal(e.target.value)}
+                  style={{ colorScheme: 'dark' }}
+                  className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-primary cursor-pointer"
+                />
+              </div>
+            </div>
+            <div className="p-5 pt-0 flex justify-end gap-3">
+              <button
+                onClick={() => setPedidoEntrega(null)}
+                className="btn btn-secondary text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmarEntrega}
+                disabled={confirmandoEntrega || !fechaEntregaReal}
+                className="btn btn-primary text-xs flex items-center gap-2 font-bold"
+              >
+                {confirmandoEntrega ? (
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <CheckCircle2 size={13} />
+                )}
+                Confirmar Entrega
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

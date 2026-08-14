@@ -34,6 +34,7 @@ export async function GET(request: Request) {
             numeroPedido: true,
             zona: true,
             vendedorAlias: true,
+            estado: true,
             empresa: { select: { nombre: true } },
           }
         },
