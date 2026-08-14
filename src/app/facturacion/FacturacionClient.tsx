@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, Search, FileDown, CheckCircle, Clock, Filter, Eye, Download, ShoppingCart, CheckCircle2 } from 'lucide-react'
+import { FileText, Search, Clock, Download, CheckCircle2 } from 'lucide-react'
 import SharedPeriodFilter from '@/components/SharedPeriodFilter'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
@@ -73,6 +73,7 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
 
   useEffect(() => {
     fetchPedidos()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriod, selectedEstado])
 
   const handleMarcarFacturado = async (id: number) => {
@@ -120,25 +121,25 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
 
     const fecha = new Date(p.creadoEn).toLocaleDateString('es-AR')
     
-    const logoHtml = \`<img src="/logo.png" style="max-height: 40px; margin-bottom: 5px;" onerror="this.style.display='none'" />\`
+    const logoHtml = `<img src="/logo.png" style="max-height: 40px; margin-bottom: 5px;" onerror="this.style.display='none'" />`
 
-    div.innerHTML = \`
+    div.innerHTML = `
       <div style="font-family: 'Helvetica', sans-serif; font-size: 12px; padding: 40px; color: #000; background: white; width: 800px; min-height: 1100px; box-sizing: border-box;">
         
         <!-- HEADER -->
         <div style="display: flex; justify-content: space-between; border: 2px solid #000; border-radius: 8px; padding: 20px; position: relative;">
           <!-- Tipo Letra Central -->
           <div style="position: absolute; left: 50%; top: 0; transform: translate(-50%, -50%); background: white; padding: 0 10px; text-align: center;">
-            <div style="font-size: 36px; font-weight: bold; border: 2px solid #000; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; margin: 0 auto; background: white;">\${isFacturaA ? 'A' : 'X'}</div>
+            <div style="font-size: 36px; font-weight: bold; border: 2px solid #000; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; margin: 0 auto; background: white;">${isFacturaA ? 'A' : 'X'}</div>
             <div style="font-size: 10px; font-weight: bold; margin-top: 2px;">CÓD. 01</div>
           </div>
 
           <!-- Izquierda -->
           <div style="width: 45%;">
-            \${isFacturaA ? logoHtml : ''}
-            <div style="font-size: 28px; font-weight: 900; letter-spacing: 1px;">\${isFacturaA ? 'NEOSOL' : 'LOS AMIGOS'}</div>
+            ${isFacturaA ? logoHtml : ''}
+            <div style="font-size: 28px; font-weight: 900; letter-spacing: 1px;">${isFacturaA ? 'NEOSOL' : 'LOS AMIGOS'}</div>
             <div style="font-size: 11px; margin-top: 10px;">
-              <strong>Razón Social:</strong> \${isFacturaA ? 'Neosol S.A.' : 'Los Amigos S.R.L.'}<br/>
+              <strong>Razón Social:</strong> ${isFacturaA ? 'Neosol S.A.' : 'Los Amigos S.R.L.'}<br/>
               <strong>Domicilio Comercial:</strong> Av. Siempre Viva 123, CABA<br/>
               <strong>Condición frente al IVA:</strong> Responsable Inscripto
             </div>
@@ -146,10 +147,10 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
 
           <!-- Derecha -->
           <div style="width: 45%; text-align: right;">
-            <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">\${isFacturaA ? 'FACTURA' : 'DOCUMENTO NO VÁLIDO COMO FACTURA'}</div>
+            <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">${isFacturaA ? 'FACTURA' : 'DOCUMENTO NO VÁLIDO COMO FACTURA'}</div>
             <div style="font-size: 12px; line-height: 1.6;">
-              <strong>Punto de Venta:</strong> 0001 &nbsp;&nbsp; <strong>Comp. Nro:</strong> \${String(p.id).padStart(8, '0')}<br/>
-              <strong>Fecha de Emisión:</strong> \${fecha}<br/>
+              <strong>Punto de Venta:</strong> 0001 &nbsp;&nbsp; <strong>Comp. Nro:</strong> ${String(p.id).padStart(8, '0')}<br/>
+              <strong>Fecha de Emisión:</strong> ${fecha}<br/>
               <strong>CUIT:</strong> 30-12345678-9<br/>
               <strong>Ingresos Brutos:</strong> 30-12345678-9<br/>
               <strong>Inicio de Actividades:</strong> 01/01/2020
@@ -161,12 +162,12 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
         <div style="border: 2px solid #000; border-radius: 8px; padding: 15px; margin-top: 15px;">
           <table style="width: 100%; font-size: 12px;">
             <tr>
-              <td style="width: 50%;"><strong>CUIT:</strong> \${p.empresa?.cuit || 'Consumidor Final'}</td>
-              <td style="width: 50%;"><strong>Razón Social:</strong> \${p.empresa?.nombre}</td>
+              <td style="width: 50%;"><strong>CUIT:</strong> ${p.empresa?.cuit || 'Consumidor Final'}</td>
+              <td style="width: 50%;"><strong>Razón Social:</strong> ${p.empresa?.nombre}</td>
             </tr>
             <tr>
               <td><strong>Condición frente al IVA:</strong> Responsable Inscripto</td>
-              <td><strong>Domicilio:</strong> \${p.empresa?.direccion || 'S/D'}</td>
+              <td><strong>Domicilio:</strong> ${p.empresa?.direccion || 'S/D'}</td>
             </tr>
             <tr>
               <td><strong>Condición de Venta:</strong> Cuenta Corriente</td>
@@ -188,18 +189,18 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
             </tr>
           </thead>
           <tbody>
-            \${detallesFiltrados.map((d: any) => {
+            ${detallesFiltrados.map((d: any) => {
               const q = isFacturaA ? d.cajasFacturaA : d.cajasFacturaX;
-              return \`
+              return `
                 <tr>
-                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: left;">\${d.producto?.codigoInterno || 'N/A'}</td>
-                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: left;">\${d.producto?.nombre}</td>
-                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: center;">\${q}</td>
+                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: left;">${d.producto?.codigoInterno || 'N/A'}</td>
+                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: left;">${d.producto?.nombre}</td>
+                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: center;">${q}</td>
                   <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: center;">Cajas</td>
-                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: right;">\${fmt(d.precioCajaSnapshot)}</td>
-                  <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">\${fmt(q * (d.precioCajaSnapshot || 0))}</td>
+                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: right;">${fmt(d.precioCajaSnapshot)}</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${fmt(q * (d.precioCajaSnapshot || 0))}</td>
                 </tr>
-              \`;
+              `;
             }).join('')}
           </tbody>
         </table>
@@ -209,32 +210,32 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
           <div style="border: 2px solid #000; border-radius: 8px; width: 350px; padding: 15px; font-size: 13px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
               <span><strong>Importe Neto Gravado:</strong></span>
-              <span>\${fmt(subtotal)}</span>
+              <span>${fmt(subtotal)}</span>
             </div>
-            \${isFacturaA ? \`
+            ${isFacturaA ? `
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
               <span><strong>IVA 21%:</strong></span>
-              <span>\${fmt(iva)}</span>
+              <span>${fmt(iva)}</span>
             </div>
-            \` : ''}
-            \${recargo > 0 ? \`
+            ` : ''}
+            ${recargo > 0 ? `
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
               <span><strong>Recargo 3%:</strong></span>
-              <span>\${fmt(recargo)}</span>
+              <span>${fmt(recargo)}</span>
             </div>
-            \` : ''}
+            ` : ''}
             <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #000; font-size: 16px;">
               <span><strong>Total:</strong></span>
-              <span><strong>\${fmt(total)}</strong></span>
+              <span><strong>${fmt(total)}</strong></span>
             </div>
           </div>
         </div>
 
         <div style="margin-top: 40px; font-size: 10px; color: #555;">
-          <p>Comprobante generado automáticamente por CRM Visitas - Pedido #\${p.numeroPedido}</p>
+          <p>Comprobante generado automáticamente por CRM Visitas - Pedido #${p.numeroPedido}</p>
         </div>
       </div>
-    \`
+    `
     div.style.position = 'absolute'
     div.style.top = '-9999px'
     div.style.left = '-9999px'
@@ -247,7 +248,7 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
       const pdfWidth = pdf.internal.pageSize.getWidth()
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
-      pdf.save(\`\${isFacturaA ? 'FacturaA' : 'RemitoX'}_\${p.numeroPedido}.pdf\`)
+      pdf.save(`${isFacturaA ? 'FacturaA' : 'RemitoX'}_${p.numeroPedido}.pdf`)
     } catch (e) {
       console.error(e)
       alert('Error generando el PDF')
@@ -317,12 +318,12 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
               <button
                 key={e.key}
                 onClick={() => setSelectedEstado(e.key)}
-                className={\`btn-toggle \${selectedEstado === e.key ? 'active' : ''} flex items-center gap-1\`}
+                className={`btn-toggle ${selectedEstado === e.key ? 'active' : ''} flex items-center gap-1`}
               >
                 {e.label}
-                <span className={\`px-1.5 py-0.5 rounded-full text-[9px] font-black \${
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
                   selectedEstado === e.key ? 'bg-primary/30 text-white' : 'bg-white/5 text-secondary'
-                }\`}>
+                }`}>
                   {counts[e.key as keyof typeof counts]}
                 </span>
               </button>
