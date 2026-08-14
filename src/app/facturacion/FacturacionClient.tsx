@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, Search, Clock, Download, CheckCircle2, Eye, Trash2 } from 'lucide-react'
+import { FileText, Search, Clock, Download, CheckCircle2, Eye, Trash2, X } from 'lucide-react'
 import SharedPeriodFilter from '@/components/SharedPeriodFilter'
 import { PedidoDetalleModal } from '@/components/PedidoDetalleModal'
 import jsPDF from 'jspdf'
@@ -12,7 +12,7 @@ import { formatDate } from '@/lib/date'
 // Utilidad para formatear moneda
 const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n)
 
-export default function FacturacionClient({ userNivel, userAlias, userZona, zonasHabilitadas }: any) {
+export default function FacturacionClient({ userNivel, userAlias, userZona, zonasHabilitadas, logo }: any) {
   const router = useRouter()
   const [pedidos, setPedidos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -20,6 +20,11 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
   const [selectedPeriod, setSelectedPeriod] = useState<string>('mes')
   const [selectedEstado, setSelectedEstado] = useState('todos') // 'todos', 'aprobado', 'facturado'
   const [selectedPedido, setSelectedPedido] = useState<any>(null)
+  
+  // Estado para la vista previa
+  const [previewInvoice, setPreviewInvoice] = useState<{ id: number, tipo: 'A' | 'X' } | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const invoiceRef = useRef<HTMLDivElement>(null)
 
   const fetchPedidos = async () => {
     try {
@@ -27,20 +32,13 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
       const res = await fetch('/api/pedidos?estado=todos')
       const data = await res.json()
       if (Array.isArray(data)) {
-        // Filtrar solo aprobados o facturados
         let filtrados = data.filter(p => p.estado === 'aprobado' || p.estado === 'facturado')
-        
-        // Si es nivel 3, solo ver los propios
         if (userNivel === 3) {
           filtrados = filtrados.filter(p => p.vendedorAlias === userAlias)
         }
-
-        // Filtro por estado
         if (selectedEstado !== 'todos') {
           filtrados = filtrados.filter(p => p.estado === selectedEstado)
         }
-
-        // Filtro por periodo
         const now = new Date()
         filtrados = filtrados.filter(p => {
           const d = new Date(p.creadoEn)
@@ -63,7 +61,6 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
           }
           return true
         })
-        
         setPedidos(filtrados)
       }
     } catch (e) {
@@ -101,15 +98,35 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
     } catch { alert('Error de conexión') }
   }
 
-  const handleDownloadPDF = async (pedidoId: number, tipo: 'A' | 'X') => {
-    const p = pedidos.find(x => x.id === pedidoId)
+  const handleDownloadPDF = async () => {
+    if (!invoiceRef.current || !previewInvoice) return
+    setIsGenerating(true)
+    const p = pedidos.find(x => x.id === previewInvoice.id)
     if (!p) return
 
-    const div = document.createElement('div')
-    // We create a container that looks exactly like a printed invoice
-    const isFacturaA = tipo === 'A'
-    
-    // Filter details based on the invoice type split
+    try {
+      const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+      pdf.save(`${previewInvoice.tipo === 'A' ? 'FacturaA' : 'RemitoX'}_${p.numeroPedido}.pdf`)
+    } catch (e) {
+      console.error(e)
+      alert('Error generando el PDF')
+    } finally {
+      setIsGenerating(false)
+      setPreviewInvoice(null) // Cerrar el modal tras descargar si se desea
+    }
+  }
+
+  const renderInvoicePreview = () => {
+    if (!previewInvoice) return null
+    const p = pedidos.find(x => x.id === previewInvoice.id)
+    if (!p) return null
+
+    const isFacturaA = previewInvoice.tipo === 'A'
     const detallesFiltrados = p.detalles.filter((d: any) => {
       const q = isFacturaA ? d.cajasFacturaA : d.cajasFacturaX
       return q > 0
@@ -122,46 +139,53 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
       subtotal += q * (d.precioCajaSnapshot || 0)
     })
     
-    // Si es Factura A, IVA = 21% de la base. Si es X, sin IVA o recargo 3% si es transferencia
     const iva = isFacturaA ? subtotal * 0.21 : 0
     let recargo = 0
     if (!isFacturaA && p.metodoPagoB === 'transferencia') {
       recargo = subtotal * 0.03
     }
     const total = subtotal + iva + recargo
-
     const fecha = new Date(p.creadoEn).toLocaleDateString('es-AR')
-    
-    const logoHtml = `<img src="/logo.png" style="max-height: 40px; margin-bottom: 5px;" onerror="this.style.display='none'" />`
 
-    div.innerHTML = `
-      <div style="font-family: 'Helvetica', sans-serif; font-size: 12px; padding: 40px; color: #000; background: white; width: 800px; min-height: 1100px; box-sizing: border-box;">
-        
-        <!-- HEADER -->
-        <div style="display: flex; justify-content: space-between; border: 2px solid #000; border-radius: 8px; padding: 20px; position: relative;">
-          <!-- Tipo Letra Central -->
-          <div style="position: absolute; left: 50%; top: 0; transform: translate(-50%, -50%); background: white; padding: 0 10px; text-align: center;">
-            <div style="font-size: 36px; font-weight: bold; border: 2px solid #000; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; margin: 0 auto; background: white;">${isFacturaA ? 'A' : 'X'}</div>
-            <div style="font-size: 10px; font-weight: bold; margin-top: 2px;">CÓD. 01</div>
+    return (
+      <div 
+        ref={invoiceRef} 
+        style={{ 
+          fontFamily: 'Helvetica, sans-serif', 
+          fontSize: '12px', 
+          padding: '40px', 
+          color: '#000', 
+          background: 'white', 
+          width: '800px', 
+          minHeight: '1100px', 
+          boxSizing: 'border-box' 
+        }}
+      >
+        {/* HEADER */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', border: '2px solid #000', borderRadius: '8px', padding: '20px', position: 'relative' }}>
+          {/* Tipo Letra Central */}
+          <div style={{ position: 'absolute', left: '50%', top: '0', transform: 'translate(-50%, -50%)', background: 'white', padding: '0 10px', textAlign: 'center' }}>
+            <div style={{ fontSize: '36px', fontWeight: 'bold', border: '2px solid #000', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', background: 'white' }}>{isFacturaA ? 'A' : 'X'}</div>
+            <div style={{ fontSize: '10px', fontWeight: 'bold', marginTop: '2px' }}>CÓD. 01</div>
           </div>
 
-          <!-- Izquierda -->
-          <div style="width: 45%;">
-            ${isFacturaA ? logoHtml : ''}
-            <div style="font-size: 28px; font-weight: 900; letter-spacing: 1px;">${isFacturaA ? 'NEOSOL' : 'LOS AMIGOS'}</div>
-            <div style="font-size: 11px; margin-top: 10px;">
-              <strong>Razón Social:</strong> ${isFacturaA ? 'Neosol S.A.' : 'Los Amigos S.R.L.'}<br/>
+          {/* Izquierda */}
+          <div style={{ width: '45%' }}>
+            {isFacturaA && logo && <img src={logo} style={{ maxHeight: '40px', marginBottom: '5px' }} alt="Logo" />}
+            <div style={{ fontSize: '28px', fontWeight: 900, letterSpacing: '1px' }}>{isFacturaA ? 'NEOSOL' : 'LOS AMIGOS'}</div>
+            <div style={{ fontSize: '11px', marginTop: '10px' }}>
+              <strong>Razón Social:</strong> {isFacturaA ? 'Neosol S.A.' : 'Los Amigos S.R.L.'}<br/>
               <strong>Domicilio Comercial:</strong> Av. Siempre Viva 123, CABA<br/>
               <strong>Condición frente al IVA:</strong> Responsable Inscripto
             </div>
           </div>
 
-          <!-- Derecha -->
-          <div style="width: 45%; text-align: right;">
-            <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">${isFacturaA ? 'FACTURA' : 'DOCUMENTO NO VÁLIDO COMO FACTURA'}</div>
-            <div style="font-size: 12px; line-height: 1.6;">
-              <strong>Punto de Venta:</strong> 0001 &nbsp;&nbsp; <strong>Comp. Nro:</strong> ${String(p.id).padStart(8, '0')}<br/>
-              <strong>Fecha de Emisión:</strong> ${fecha}<br/>
+          {/* Derecha */}
+          <div style={{ width: '45%', textAlign: 'right' }}>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px' }}>{isFacturaA ? 'FACTURA' : 'DOCUMENTO NO VÁLIDO COMO FACTURA'}</div>
+            <div style={{ fontSize: '12px', lineHeight: 1.6 }}>
+              <strong>Punto de Venta:</strong> 0001 &nbsp;&nbsp; <strong>Comp. Nro:</strong> {String(p.id).padStart(8, '0')}<br/>
+              <strong>Fecha de Emisión:</strong> {fecha}<br/>
               <strong>CUIT:</strong> 30-12345678-9<br/>
               <strong>Ingresos Brutos:</strong> 30-12345678-9<br/>
               <strong>Inicio de Actividades:</strong> 01/01/2020
@@ -169,103 +193,86 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
           </div>
         </div>
 
-        <!-- CLIENTE -->
-        <div style="border: 2px solid #000; border-radius: 8px; padding: 15px; margin-top: 15px;">
-          <table style="width: 100%; font-size: 12px;">
-            <tr>
-              <td style="width: 50%;"><strong>CUIT:</strong> ${p.empresa?.cuit || 'Consumidor Final'}</td>
-              <td style="width: 50%;"><strong>Razón Social:</strong> ${p.empresa?.nombre}</td>
-            </tr>
-            <tr>
-              <td><strong>Condición frente al IVA:</strong> Responsable Inscripto</td>
-              <td><strong>Domicilio:</strong> ${p.empresa?.direccion || 'S/D'}</td>
-            </tr>
-            <tr>
-              <td><strong>Condición de Venta:</strong> Cuenta Corriente</td>
-              <td></td>
-            </tr>
+        {/* CLIENTE */}
+        <div style={{ border: '2px solid #000', borderRadius: '8px', padding: '15px', marginTop: '15px' }}>
+          <table style={{ width: '100%', fontSize: '12px' }}>
+            <tbody>
+              <tr>
+                <td style={{ width: '50%' }}><strong>CUIT:</strong> {p.empresa?.cuit || 'Consumidor Final'}</td>
+                <td style={{ width: '50%' }}><strong>Razón Social:</strong> {p.empresa?.nombre}</td>
+              </tr>
+              <tr>
+                <td><strong>Condición frente al IVA:</strong> Responsable Inscripto</td>
+                <td><strong>Domicilio:</strong> {p.empresa?.direccion || 'S/D'}</td>
+              </tr>
+              <tr>
+                <td><strong>Condición de Venta:</strong> Cuenta Corriente</td>
+                <td></td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
-        <!-- ITEMS -->
-        <table style="width: 100%; margin-top: 15px; border-collapse: collapse; border: 2px solid #000;">
-          <thead style="background: #eee; border-bottom: 2px solid #000;">
+        {/* ITEMS */}
+        <table style={{ width: '100%', marginTop: '15px', borderCollapse: 'collapse', border: '2px solid #000' }}>
+          <thead style={{ background: '#eee', borderBottom: '2px solid #000' }}>
             <tr>
-              <th style="padding: 8px; border-right: 1px solid #000; text-align: left; width: 10%;">Código</th>
-              <th style="padding: 8px; border-right: 1px solid #000; text-align: left; width: 40%;">Producto / Servicio</th>
-              <th style="padding: 8px; border-right: 1px solid #000; text-align: center; width: 10%;">Cantidad</th>
-              <th style="padding: 8px; border-right: 1px solid #000; text-align: center; width: 10%;">U. Medida</th>
-              <th style="padding: 8px; border-right: 1px solid #000; text-align: right; width: 15%;">Precio Unit.</th>
-              <th style="padding: 8px; text-align: right; width: 15%;">Subtotal</th>
+              <th style={{ padding: '8px', borderRight: '1px solid #000', textAlign: 'left', width: '10%' }}>Código</th>
+              <th style={{ padding: '8px', borderRight: '1px solid #000', textAlign: 'left', width: '40%' }}>Producto / Servicio</th>
+              <th style={{ padding: '8px', borderRight: '1px solid #000', textAlign: 'center', width: '10%' }}>Cantidad</th>
+              <th style={{ padding: '8px', borderRight: '1px solid #000', textAlign: 'center', width: '10%' }}>U. Medida</th>
+              <th style={{ padding: '8px', borderRight: '1px solid #000', textAlign: 'right', width: '15%' }}>Precio Unit.</th>
+              <th style={{ padding: '8px', textAlign: 'right', width: '15%' }}>Subtotal</th>
             </tr>
           </thead>
           <tbody>
-            ${detallesFiltrados.map((d: any) => {
+            {detallesFiltrados.map((d: any, idx: number) => {
               const q = isFacturaA ? d.cajasFacturaA : d.cajasFacturaX;
-              return `
-                <tr>
-                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: left;">${d.producto?.codigoInterno || 'N/A'}</td>
-                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: left;">${d.producto?.nombre}</td>
-                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: center;">${q}</td>
-                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: center;">Cajas</td>
-                  <td style="padding: 8px; border-right: 1px solid #000; border-bottom: 1px solid #ddd; text-align: right;">${fmt(d.precioCajaSnapshot)}</td>
-                  <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${fmt(q * (d.precioCajaSnapshot || 0))}</td>
+              return (
+                <tr key={idx}>
+                  <td style={{ padding: '8px', borderRight: '1px solid #000', borderBottom: '1px solid #ddd', textAlign: 'left' }}>{d.producto?.codigoInterno || 'N/A'}</td>
+                  <td style={{ padding: '8px', borderRight: '1px solid #000', borderBottom: '1px solid #ddd', textAlign: 'left' }}>{d.producto?.nombre}</td>
+                  <td style={{ padding: '8px', borderRight: '1px solid #000', borderBottom: '1px solid #ddd', textAlign: 'center' }}>{q}</td>
+                  <td style={{ padding: '8px', borderRight: '1px solid #000', borderBottom: '1px solid #ddd', textAlign: 'center' }}>Cajas</td>
+                  <td style={{ padding: '8px', borderRight: '1px solid #000', borderBottom: '1px solid #ddd', textAlign: 'right' }}>{fmt(d.precioCajaSnapshot)}</td>
+                  <td style={{ padding: '8px', borderBottom: '1px solid #ddd', textAlign: 'right' }}>{fmt(q * (d.precioCajaSnapshot || 0))}</td>
                 </tr>
-              `;
-            }).join('')}
+              )
+            })}
           </tbody>
         </table>
 
-        <!-- TOTALES -->
-        <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
-          <div style="border: 2px solid #000; border-radius: 8px; width: 350px; padding: 15px; font-size: 13px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+        {/* TOTALES */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '15px' }}>
+          <div style={{ border: '2px solid #000', borderRadius: '8px', width: '350px', padding: '15px', fontSize: '13px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
               <span><strong>Importe Neto Gravado:</strong></span>
-              <span>${fmt(subtotal)}</span>
+              <span>{fmt(subtotal)}</span>
             </div>
-            ${isFacturaA ? `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            {isFacturaA && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
               <span><strong>IVA 21%:</strong></span>
-              <span>${fmt(iva)}</span>
+              <span>{fmt(iva)}</span>
             </div>
-            ` : ''}
-            ${recargo > 0 ? `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            )}
+            {recargo > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
               <span><strong>Recargo 3%:</strong></span>
-              <span>${fmt(recargo)}</span>
+              <span>{fmt(recargo)}</span>
             </div>
-            ` : ''}
-            <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #000; font-size: 16px;">
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', paddingTop: '10px', borderTop: '2px solid #000', fontSize: '16px' }}>
               <span><strong>Total:</strong></span>
-              <span><strong>${fmt(total)}</strong></span>
+              <span><strong>{fmt(total)}</strong></span>
             </div>
           </div>
         </div>
 
-        <div style="margin-top: 40px; font-size: 10px; color: #555;">
-          <p>Comprobante generado automáticamente por CRM Visitas - Pedido #${p.numeroPedido}</p>
+        <div style={{ marginTop: '40px', fontSize: '10px', color: '#555' }}>
+          <p>Comprobante generado automáticamente por CRM Visitas - Pedido #{p.numeroPedido}</p>
         </div>
       </div>
-    `
-    div.style.position = 'absolute'
-    div.style.top = '-9999px'
-    div.style.left = '-9999px'
-    document.body.appendChild(div)
-
-    try {
-      const canvas = await html2canvas(div.firstElementChild as HTMLElement, { scale: 2, useCORS: true })
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
-      pdf.save(`${isFacturaA ? 'FacturaA' : 'RemitoX'}_${p.numeroPedido}.pdf`)
-    } catch (e) {
-      console.error(e)
-      alert('Error generando el PDF')
-    } finally {
-      document.body.removeChild(div)
-    }
+    )
   }
 
   const pedidosFiltrados = pedidos.filter(p => 
@@ -418,23 +425,21 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
                             <CheckCircle2 size={12} />
                           </button>
                         )}
-                        {/* Descarga Factura A */}
+                        {/* Vista previa Factura A */}
                         <button
-                          onClick={() => handleDownloadPDF(p.id, 'A')}
+                          onClick={() => setPreviewInvoice({ id: p.id, tipo: 'A' })}
                           className="btn-action text-blue-400 border-blue-400/20 hover:bg-blue-400/10"
-                          title="Descargar Factura A"
+                          title="Ver Factura A"
                         >
                           <span className="text-[10px] font-bold">A</span>
-                          <Download size={12} className="ml-1" />
                         </button>
-                        {/* Descarga Factura X */}
+                        {/* Vista previa Factura X */}
                         <button
-                          onClick={() => handleDownloadPDF(p.id, 'X')}
+                          onClick={() => setPreviewInvoice({ id: p.id, tipo: 'X' })}
                           className="btn-action text-orange-400 border-orange-400/20 hover:bg-orange-400/10"
-                          title="Descargar Remito X"
+                          title="Ver Remito X"
                         >
                           <span className="text-[10px] font-bold">X</span>
-                          <Download size={12} className="ml-1" />
                         </button>
                         {/* Eliminar (Solo Nivel 1) */}
                         {userNivel === 1 && (
@@ -496,16 +501,16 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
                       </button>
                     )}
                     <button
-                      onClick={() => handleDownloadPDF(p.id, 'A')}
+                      onClick={() => setPreviewInvoice({ id: p.id, tipo: 'A' })}
                       className="btn-action text-blue-400 border-blue-400/20 hover:bg-blue-400/10 px-2"
                     >
-                      <span className="font-bold text-[10px] mr-1">A</span> <Download size={14} />
+                      <span className="font-bold text-[10px]">A</span>
                     </button>
                     <button
-                      onClick={() => handleDownloadPDF(p.id, 'X')}
+                      onClick={() => setPreviewInvoice({ id: p.id, tipo: 'X' })}
                       className="btn-action text-orange-400 border-orange-400/20 hover:bg-orange-400/10 px-2"
                     >
-                      <span className="font-bold text-[10px] mr-1">X</span> <Download size={14} />
+                      <span className="font-bold text-[10px]">X</span>
                     </button>
                     {userNivel === 1 && (
                       <button
@@ -523,11 +528,54 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
           )}
         </div>
       </div>
+
       {selectedPedido && (
         <PedidoDetalleModal 
           pedido={selectedPedido} 
           onClose={() => setSelectedPedido(null)} 
         />
+      )}
+
+      {/* Invoice Preview Modal */}
+      {previewInvoice && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/90 p-4 sm:p-8 overflow-y-auto">
+          <div className="max-w-4xl w-full mx-auto flex flex-col h-full">
+            {/* Toolbar */}
+            <div className="flex justify-between items-center mb-4 bg-[#111] p-4 rounded-xl border border-white/10">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <FileText size={20} className="text-primary" />
+                Vista Previa - {previewInvoice.tipo === 'A' ? 'Factura A' : 'Remito X'}
+              </h2>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleDownloadPDF} 
+                  disabled={isGenerating}
+                  className="btn btn-primary flex items-center gap-2"
+                >
+                  {isGenerating ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Download size={16} />
+                  )}
+                  {isGenerating ? 'Generando...' : 'Descargar PDF'}
+                </button>
+                <button 
+                  onClick={() => setPreviewInvoice(null)} 
+                  className="btn btn-secondary flex items-center gap-2"
+                >
+                  <X size={16} /> Cerrar
+                </button>
+              </div>
+            </div>
+            
+            {/* Document Preview Area */}
+            <div className="flex-1 overflow-auto flex justify-center bg-gray-900 rounded-xl border border-white/5 p-4 sm:p-8">
+              <div className="shadow-2xl">
+                {renderInvoiceContent()}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
