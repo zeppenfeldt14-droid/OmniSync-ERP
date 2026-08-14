@@ -336,64 +336,63 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
               {isLastPage && (
                 <div style={{ position: 'absolute', bottom: '40px', left: '40px', right: '40px' }}>
                   <div style={{ height: '1px', background: '#ddd', width: '100%', margin: '15px 0' }}></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '20px' }}>
-                    
-                    <div style={{ width: '50%' }}>
-                      <div style={{ display: 'flex', gap: '40px', fontSize: '11px', textAlign: 'left' }}>
-                        <div>
-                          <div style={{ marginBottom: '5px' }}>Bultos</div>
-                          <div>{totalBultos}</div>
-                        </div>
-                        <div>
-                          <div style={{ marginBottom: '5px' }}>Pallets</div>
-                          <div>{pallets}</div>
-                        </div>
-                        <div>
-                          <div style={{ marginBottom: '5px' }}>Peso (Kgs)</div>
-                          <div>0.00</div>
-                        </div>
-                        <div>
-                          <div style={{ marginBottom: '5px' }}>Unidades</div>
-                          <div>{totalUnidades}</div>
-                        </div>
-                      </div>
-
-                      {isFacturaA && (
-                        <div style={{ marginTop: '50px', display: 'flex', alignItems: 'flex-end', gap: '15px' }}>
-                          <div style={{ width: '80px', height: '80px', background: 'url(https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg)', backgroundSize: 'cover' }}></div>
-                        </div>
-                      )}
+                  
+                  {/* KPIs */}
+                  <div style={{ display: 'flex', gap: '40px', fontSize: '11px', textAlign: 'left', marginBottom: '20px' }}>
+                    <div>
+                      <div style={{ marginBottom: '5px' }}>Bultos</div>
+                      <div>{totalBultos}</div>
                     </div>
-
-                    <div style={{ width: '40%', fontSize: '11px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span>Importe Excento</span>
-                        <span>$ 0,00</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span>Importe Neto No Gravado</span>
-                        <span>{isFacturaA ? '$ 0,00' : fmt(subtotal)}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span>Importe Neto Gravado</span>
-                        <span>{isFacturaA ? fmt(subtotal) : '$ 0,00'}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span>IVA {isFacturaA ? '21%' : ''}</span>
-                        <span>{fmt(iva)}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', paddingTop: '5px', fontWeight: 'bold' }}>
-                        <span>TOTAL</span>
-                        <span>{fmt(total)}</span>
-                      </div>
-                      {isFacturaA && (
-                        <div style={{ marginTop: '40px', textAlign: 'right', fontSize: '10px' }}>
-                          <div>CAE Nº: 86240091668438</div>
-                          <div>Fecha Vto. de CAE: 27/06/2026</div>
-                        </div>
-                      )}
+                    <div>
+                      <div style={{ marginBottom: '5px' }}>Pallets</div>
+                      <div>{pallets}</div>
+                    </div>
+                    <div>
+                      <div style={{ marginBottom: '5px' }}>Peso (Kgs)</div>
+                      <div>0.00</div>
+                    </div>
+                    <div>
+                      <div style={{ marginBottom: '5px' }}>Unidades</div>
+                      <div>{totalUnidades}</div>
                     </div>
                   </div>
+
+                  <div style={{ height: '1px', background: '#ddd', width: '100%', margin: '15px 0' }}></div>
+
+                  {/* Totales */}
+                  <div style={{ fontSize: '11px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span>Importe Exento</span>
+                      <span>$ 0,00</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span>Importe Neto No Gravado</span>
+                      <span>{isFacturaA ? '$ 0,00' : fmt(subtotal)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span>Importe Neto Gravado</span>
+                      <span>{isFacturaA ? fmt(subtotal) : '$ 0,00'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span>IVA {isFacturaA ? '21%' : ''}</span>
+                      <span>{fmt(iva)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', paddingTop: '5px', fontWeight: 'bold' }}>
+                      <span>TOTAL</span>
+                      <span>{fmt(total)}</span>
+                    </div>
+                  </div>
+
+                  {/* QR y CAE */}
+                  {isFacturaA && (
+                    <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                      <div style={{ width: '80px', height: '80px', background: 'url(https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg)', backgroundSize: 'cover' }}></div>
+                      <div style={{ textAlign: 'right', fontSize: '10px' }}>
+                        <div>CAE Nº: 86240091668438</div>
+                        <div>Fecha Vto. de CAE: 27/06/2026</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
