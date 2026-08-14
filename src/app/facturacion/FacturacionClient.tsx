@@ -127,16 +127,28 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
     if (!p) return null
 
     const isFacturaA = previewInvoice.tipo === 'A'
-    const detallesFiltrados = p.detalles.filter((d: any) => {
-      const q = isFacturaA ? d.cajasFacturaA : d.cajasFacturaX
-      return q > 0
-    })
+    
+    // Calcular la distribución de cajas
+    // Si cajasFacturaA/X no están seteadas (pedidos anteriores a la feature), distribuir proporcionalmente
+    const todosTotalCajas = p.detalles.reduce((acc: number, d: any) => acc + (d.cantidadCajas || 0), 0)
+    const todosConSplit = p.detalles.every((d: any) => (d.cajasFacturaA + d.cajasFacturaX) > 0)
 
-    const totalCajas = detallesFiltrados.reduce((acc: number, d: any) => acc + (isFacturaA ? d.cajasFacturaA : d.cajasFacturaX), 0)
+    const detallesFiltrados = p.detalles.map((d: any) => {
+      let cajas
+      if (todosConSplit) {
+        cajas = isFacturaA ? (d.cajasFacturaA || 0) : (d.cajasFacturaX || 0)
+      } else {
+        // Fallback: distribuir 50/50 si son pares, o mayoría en X
+        const total = d.cantidadCajas || 0
+        const mitad = Math.floor(total / 2)
+        cajas = isFacturaA ? mitad : (total - mitad)
+      }
+      return { ...d, cajasParaFactura: cajas }
+    }).filter((d: any) => d.cajasParaFactura > 0)
+
     let subtotal = 0
     detallesFiltrados.forEach((d: any) => {
-      const q = isFacturaA ? d.cajasFacturaA : d.cajasFacturaX
-      subtotal += q * (d.precioCajaSnapshot || 0)
+      subtotal += d.cajasParaFactura * (d.precioCajaSnapshot || 0)
     })
     
     const iva = isFacturaA ? subtotal * 0.21 : 0
@@ -171,7 +183,14 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
 
           {/* Izquierda */}
           <div style={{ width: '45%' }}>
-            {isFacturaA && logo && <img src={logo} style={{ maxHeight: '40px', marginBottom: '5px' }} alt="Logo" />}
+            {isFacturaA && (
+            <img 
+              src={logo || '/omnisync-logo.png'} 
+              crossOrigin="anonymous"
+              style={{ maxHeight: '40px', marginBottom: '5px', display: 'block' }} 
+              alt="Logo" 
+            />
+          )}
             <div style={{ fontSize: '28px', fontWeight: 900, letterSpacing: '1px' }}>{isFacturaA ? 'NEOSOL' : 'LOS AMIGOS'}</div>
             <div style={{ fontSize: '11px', marginTop: '10px' }}>
               <strong>Razón Social:</strong> {isFacturaA ? 'Neosol S.A.' : 'Los Amigos S.R.L.'}<br/>
@@ -227,7 +246,7 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
           </thead>
           <tbody>
             {detallesFiltrados.map((d: any, idx: number) => {
-              const q = isFacturaA ? d.cajasFacturaA : d.cajasFacturaX;
+              const q = d.cajasParaFactura
               return (
                 <tr key={idx}>
                   <td style={{ padding: '8px', borderRight: '1px solid #000', borderBottom: '1px solid #ddd', textAlign: 'left' }}>{d.producto?.codigoInterno || 'N/A'}</td>

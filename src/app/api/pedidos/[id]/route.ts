@@ -99,6 +99,12 @@ export async function PATCH(request: Request, { params }: Params) {
         fechaEntrega: body.fechaEntrega || null,
         metodoPagoB: body.metodoPagoB || null,
       }
+    } else if (accion === 'facturar') {
+      if (session.nivel > 2)
+        return NextResponse.json({ error: 'Sin permisos para facturar.' }, { status: 403 })
+      if (pedido.estado !== 'aprobado')
+        return NextResponse.json({ error: 'Solo se puede facturar un pedido aprobado.' }, { status: 400 })
+      nuevoEstado = 'facturado'
     } else if (accion === 'cancelar') {
       if (pedido.estado === 'aprobado' && session.nivel > 1)
         return NextResponse.json({ error: 'Solo Nivel 1 puede cancelar un pedido aprobado.' }, { status: 403 })
