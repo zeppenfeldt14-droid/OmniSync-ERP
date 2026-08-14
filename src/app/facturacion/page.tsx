@@ -11,7 +11,7 @@ export default async function FacturacionPage() {
   const session = await getSessionUser()
   if (!session) redirect('/login')
 
-  const logoConfig = await prisma.configuracion.findUnique({ where: { clave: 'LOGO_EMPRESA' } })
+  const logoConfig = await prisma.configuracionSistema.findUnique({ where: { clave: 'LOGO_EMPRESA' } })
   const logo = logoConfig ? logoConfig.valor : null
 
   return (

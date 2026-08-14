@@ -571,7 +571,7 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
             {/* Document Preview Area */}
             <div className="flex-1 overflow-auto flex justify-center bg-gray-900 rounded-xl border border-white/5 p-4 sm:p-8">
               <div className="shadow-2xl">
-                {renderInvoiceContent()}
+                {renderInvoicePreview()}
               </div>
             </div>
           </div>
