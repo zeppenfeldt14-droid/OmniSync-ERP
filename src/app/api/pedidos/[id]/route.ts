@@ -354,6 +354,8 @@ export async function PUT(request: Request, { params }: Params) {
         subtotal,
         cajasBonus: d.cajasBonus || 0,
         descripcionBonus: d.descripcionBonus || null,
+        cajasFacturaA: d.cajasFacturaA || 0,
+        cajasFacturaX: d.cajasFacturaX || 0,
       }
     })
 

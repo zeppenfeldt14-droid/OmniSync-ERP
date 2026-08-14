@@ -259,6 +259,12 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
                     <span>Cobranzas</span>
                   </Link>
                 )}
+                {modules.pedidos !== false && (
+                  <Link href="/facturacion" className={`nav-item ${isLinkActive('/facturacion') ? 'active' : ''}`}>
+                    <FileText className="nav-icon" />
+                    <span>Facturación</span>
+                  </Link>
+                )}
               </div>
             ))
           ) : (user.nivel === 1 || modules.zonas !== false) ? (
@@ -435,6 +441,12 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
                 <Link href="/cobranzas" className={`nav-item ${isLinkActive('/cobranzas') ? 'active' : ''}`}>
                   <Banknote className="nav-icon" />
                   <span>Cobranzas</span>
+                </Link>
+              )}
+              {(user.nivel === 1 || modules.pedidos) && (
+                <Link href="/facturacion" className={`nav-item ${isLinkActive('/facturacion') ? 'active' : ''}`}>
+                  <FileText className="nav-icon" />
+                  <span>Facturación</span>
                 </Link>
               )}
             </>

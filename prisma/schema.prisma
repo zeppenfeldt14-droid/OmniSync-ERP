@@ -263,6 +263,8 @@ model DetallePedido {
   precioPaqSnapshot  Float
   paqPorCajaSnapshot Int
   cantidadCajas      Int      @default(0)
+  cajasFacturaA      Int      @default(0)
+  cajasFacturaX      Int      @default(0)
   subtotal           Float    @default(0)
   cajasBonus         Int      @default(0)
   descripcionBonus   String?
