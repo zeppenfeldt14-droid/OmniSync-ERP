@@ -338,7 +338,7 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
                   <div style={{ height: '1px', background: '#ddd', width: '100%', margin: '15px 0' }}></div>
                   
                   {/* KPIs */}
-                  <div style={{ display: 'flex', gap: '40px', fontSize: '11px', textAlign: 'left', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '60%', fontSize: '11px', textAlign: 'left', marginBottom: '20px' }}>
                     <div>
                       <div style={{ marginBottom: '5px' }}>Bultos</div>
                       <div>{totalBultos}</div>
