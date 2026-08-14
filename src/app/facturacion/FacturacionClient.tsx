@@ -105,19 +105,25 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
     if (!p) return
 
     try {
-      const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true })
-      const imgData = canvas.toDataURL('image/png')
+      const pages = invoiceRef.current.querySelectorAll('.pdf-page')
       const pdf = new jsPDF('p', 'mm', 'a4')
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+      
+      for (let i = 0; i < pages.length; i++) {
+        if (i > 0) pdf.addPage()
+        const canvas = await html2canvas(pages[i] as HTMLElement, { scale: 2, useCORS: true })
+        const imgData = canvas.toDataURL('image/png')
+        const pdfWidth = pdf.internal.pageSize.getWidth()
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+      }
+      
       pdf.save(`${previewInvoice.tipo === 'A' ? 'FacturaA' : 'RemitoX'}_${p.numeroPedido}.pdf`)
     } catch (e) {
       console.error(e)
       alert('Error generando el PDF')
     } finally {
       setIsGenerating(false)
-      setPreviewInvoice(null) // Cerrar el modal tras descargar si se desea
+      setPreviewInvoice(null)
     }
   }
 
@@ -131,28 +137,52 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
     // Calcular la distribución de cajas
     const todosConSplit = p.detalles.every((d: any) => (d.cajasFacturaA + d.cajasFacturaX) > 0)
 
-    const detallesFiltrados = p.detalles.map((d: any) => {
-      let cajas
-      if (todosConSplit) {
-        cajas = isFacturaA ? (d.cajasFacturaA || 0) : (d.cajasFacturaX || 0)
-      } else {
-        const total = d.cantidadCajas || 0
-        const mitad = Math.floor(total / 2)
-        cajas = isFacturaA ? mitad : (total - mitad)
-      }
-      return { ...d, cajasParaFactura: cajas }
-    }).filter((d: any) => d.cajasParaFactura > 0)
+    const lineasNormales: any[] = []
+    const lineasBonificadas: any[] = []
 
     let subtotal = 0
     let totalUnidades = 0
     let totalBultos = 0
-    detallesFiltrados.forEach((d: any) => {
-      const isPromo = d.esPromocion || d.precioCajaSnapshot === 0 || d.subtotal === 0 || d.cajasBonus > 0
-      const sub = isPromo ? 0 : d.cajasParaFactura * (d.precioCajaSnapshot || 0)
-      subtotal += sub
-      totalBultos += d.cajasParaFactura
-      totalUnidades += d.cajasParaFactura * (d.paqPorCajaSnapshot || 0)
+
+    p.detalles.forEach((d: any) => {
+      let cajasAsignadas = 0
+      let cajasBonusAsignadas = 0
+      
+      if (todosConSplit) {
+        cajasAsignadas = isFacturaA ? (d.cajasFacturaA || 0) : (d.cajasFacturaX || 0)
+        cajasBonusAsignadas = isFacturaA ? (d.cajasBonusFacturaA || 0) : (d.cajasBonusFacturaX || 0)
+      } else {
+        const total = d.cantidadCajas || 0
+        const mitad = Math.floor(total / 2)
+        cajasAsignadas = isFacturaA ? mitad : (total - mitad)
+        cajasBonusAsignadas = !isFacturaA ? (d.cajasBonus || 0) : 0
+      }
+
+      const isPromoItem = d.esPromocion || d.precioCajaSnapshot === 0 || d.subtotal === 0
+
+      if (cajasAsignadas > 0) {
+        lineasNormales.push({ ...d, cajasParaFactura: cajasAsignadas, esLineaBonus: isPromoItem })
+        const sub = isPromoItem ? 0 : cajasAsignadas * (d.precioCajaSnapshot || 0)
+        subtotal += sub
+        totalBultos += cajasAsignadas
+        totalUnidades += cajasAsignadas * (d.paqPorCajaSnapshot || 0)
+      }
+      
+      if (cajasBonusAsignadas > 0) {
+        lineasBonificadas.push({ ...d, cajasParaFactura: cajasBonusAsignadas, esLineaBonus: true })
+        totalBultos += cajasBonusAsignadas
+        totalUnidades += cajasBonusAsignadas * (d.paqPorCajaSnapshot || 0)
+      }
     })
+
+    const todosLosItems = [...lineasNormales, ...lineasBonificadas]
+    
+    const ITEMS_PER_PAGE = 15
+    const pages = []
+    for (let i = 0; i < Math.max(1, todosLosItems.length); i += ITEMS_PER_PAGE) {
+      pages.push(todosLosItems.slice(i, i + ITEMS_PER_PAGE))
+    }
+
     const pallets = Math.ceil(totalBultos / 60)
     
     const iva = isFacturaA ? subtotal * 0.21 : 0
@@ -162,7 +192,6 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
     }
     const total = subtotal + iva + recargo
     
-    // Formatear fechas como DD/MM/YYYY
     const formateaFecha = (fechaStr: string) => {
       const f = new Date(fechaStr)
       return `${f.getDate().toString().padStart(2, '0')}/${(f.getMonth() + 1).toString().padStart(2, '0')}/${f.getFullYear()}`
@@ -171,196 +200,205 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
     const fechaVto = formateaFecha(p.fechaPagoA || p.fechaEntrega || p.creadoEn)
 
     return (
-      <div 
-        ref={invoiceRef} 
-        style={{ 
-          fontFamily: 'Arial, sans-serif', 
-          fontSize: '11px', 
-          padding: '40px', 
-          color: '#000', 
-          background: 'white', 
-          width: '800px', 
-          minHeight: '1100px', 
-          boxSizing: 'border-box' 
-        }}
-      >
-        {/* HEADER TOP ROW: LOGO/EMISOR | TIPO | DATOS FACTURA */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          {/* Columna Izquierda: Logo / Nombre */}
-          <div style={{ width: '40%', paddingTop: '10px' }}>
-            {logo && (
-              <img 
-                src={logo}
-                crossOrigin={logo.startsWith('data:') ? undefined : 'anonymous'}
-                style={{ maxHeight: '70px', marginBottom: '10px', display: 'block', objectFit: 'contain' }} 
-                alt="Logo" 
-              />
-            )}
-            <div style={{ fontSize: '12px' }}>
-              General Lavalle 399 Piso:0 - Avellaneda, Buenos Aires
-            </div>
-          </div>
+      <div ref={invoiceRef} style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: '#333', padding: '20px' }}>
+        {pages.map((pageItems, pageIndex) => {
+          const isLastPage = pageIndex === pages.length - 1
+          return (
+            <div 
+              key={pageIndex}
+              className="pdf-page"
+              style={{ 
+                fontFamily: 'Arial, sans-serif', 
+                fontSize: '11px', 
+                padding: '40px', 
+                color: '#000', 
+                background: 'white', 
+                width: '800px', 
+                minHeight: '1131px', 
+                boxSizing: 'border-box',
+                position: 'relative'
+              }}
+            >
+              {/* HEADER TOP ROW */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ width: '40%', paddingTop: '10px' }}>
+                  {logo && (
+                    <img 
+                      src={logo}
+                      crossOrigin={logo.startsWith('data:') ? undefined : 'anonymous'}
+                      style={{ maxHeight: '70px', marginBottom: '10px', display: 'block', objectFit: 'contain' }} 
+                      alt="Logo" 
+                    />
+                  )}
+                  <div style={{ fontSize: '12px' }}>
+                    General Lavalle 399 Piso:0 - Avellaneda, Buenos Aires
+                  </div>
+                </div>
 
-          {/* Columna Central: Tipo Comprobante */}
-          <div style={{ width: '20%', display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '10px' }}>
-            <div style={{ border: '1px solid #000', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 'bold' }}>
-              {isFacturaA ? 'A' : 'X'}
-            </div>
-            <div style={{ fontSize: '11px', marginTop: '5px', fontWeight: 'bold' }}>
-              {isFacturaA ? 'COD. 1' : 'COD. 901'}
-            </div>
-          </div>
+                <div style={{ width: '20%', display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '10px' }}>
+                  <div style={{ border: '1px solid #000', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 'bold' }}>
+                    {isFacturaA ? 'A' : 'X'}
+                  </div>
+                  <div style={{ fontSize: '11px', marginTop: '5px', fontWeight: 'bold' }}>
+                    {isFacturaA ? 'COD. 1' : 'COD. 901'}
+                  </div>
+                </div>
 
-          {/* Columna Derecha: Datos Factura */}
-          <div style={{ width: '40%', textAlign: 'center', marginTop: '10px' }}>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>
-              {isFacturaA ? 'FACTURA A' : 'FACTURA X'}
-            </div>
-            <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '10px' }}>
-              N° {isFacturaA ? '00005' : '00001'} - {String(p.id).padStart(8, '0')}
-            </div>
-            <div style={{ fontSize: '12px', marginBottom: '5px' }}>
-              Fecha: {fecha}
-            </div>
-            <div style={{ fontSize: '12px' }}>
-              Vto. para el pago: {fechaVto}
-            </div>
-          </div>
-        </div>
-
-        {/* HEADER BOTTOM ROW: HOJA Y DATOS FISCALES EMISOR */}
-        <div style={{ display: 'flex', marginTop: '30px' }}>
-          <div style={{ width: '50%', textAlign: 'center' }}>
-            <div style={{ fontWeight: 'bold', fontSize: '12px', marginBottom: '5px' }}>HOJA 1/{isFacturaA ? '2' : '1'}</div>
-            <div>IVA: Responsable Inscripto</div>
-          </div>
-          <div style={{ width: '1px', background: '#000' }}></div>
-          <div style={{ width: '50%', textAlign: 'center', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <div>CUIT: 30718104137</div>
-            <div>IIBB: {isFacturaA ? '30718104137' : ''}</div>
-            <div>Inicio de actividad: {isFacturaA ? '01/09/2023' : '-'}</div>
-          </div>
-        </div>
-
-        <div style={{ height: '1px', background: '#000', width: '100%', margin: '10px 0' }}></div>
-
-        {/* DATOS DEL CLIENTE */}
-        <div style={{ fontSize: '11px', lineHeight: '1.8' }}>
-          <div>Señor(es): <strong>{p.empresa?.nombre}</strong></div>
-          <div>Domicilio: {p.empresa?.direccion || 'S/D'}</div>
-          <div>CUIT: {p.empresa?.cuit || 'Consumidor Final'}</div>
-          <div>IVA: Responsable Inscripto</div>
-        </div>
-
-        <div style={{ height: '1px', background: '#000', width: '100%', margin: '15px 0' }}></div>
-
-        {/* DATOS DE VENTA */}
-        <div style={{ fontSize: '11px', lineHeight: '1.8', marginBottom: '15px' }}>
-          <div>Remito: {String(p.id).padStart(5, '0')}-00000000</div>
-          <div>Orden de Compra: {p.id}</div>
-        </div>
-
-        {/* TABLA DE PRODUCTOS */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid #ddd' }}>
-              <th style={{ padding: '8px 0', textAlign: 'left', fontWeight: 'bold' }}>Código</th>
-              <th style={{ padding: '8px 0', textAlign: 'left', fontWeight: 'bold' }}>Descripcion</th>
-              <th style={{ padding: '8px 0', textAlign: 'center', fontWeight: 'bold' }}>Cantidad</th>
-              <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>Precio unitario</th>
-              <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>Bonif.</th>
-              <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>IVA</th>
-              <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>Importe</th>
-            </tr>
-          </thead>
-          <tbody>
-            {detallesFiltrados.map((d: any, idx: number) => {
-              const q = d.cajasParaFactura
-              const desc = `${d.producto?.codigoInterno || ''} - NEOSOL - ${d.producto?.nombre} ${d.producto?.descripcion || ''}`.trim()
-              const isPromo = d.esPromocion || d.precioCajaSnapshot === 0 || d.subtotal === 0 || d.cajasBonus > 0
-              const unitPrice = isPromo ? (d.producto?.precioCaja || d.precioCajaOriginal || 0) : (d.precioCajaSnapshot || 0)
-              const sub = isPromo ? 0 : q * unitPrice
-              const bonifText = isPromo ? `${fmt(unitPrice)} (100.00%)` : '$ 0,00 (0.00%)'
-              return (
-                <tr key={idx} style={{ verticalAlign: 'top' }}>
-                  <td style={{ padding: '8px 0', textAlign: 'left' }}>{d.producto?.codigoInterno || 'N/A'}</td>
-                  <td style={{ padding: '8px 0', textAlign: 'left', maxWidth: '300px' }}>{desc}</td>
-                  <td style={{ padding: '8px 0', textAlign: 'center' }}>{q.toFixed(2)}</td>
-                  <td style={{ padding: '8px 0', textAlign: 'right' }}>{fmt(unitPrice)}</td>
-                  <td style={{ padding: '8px 0', textAlign: 'right' }}>{bonifText}</td>
-                  <td style={{ padding: '8px 0', textAlign: 'right' }}>$ 0,00</td>
-                  <td style={{ padding: '8px 0', textAlign: 'right' }}>{fmt(sub)}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-
-        <div style={{ height: '1px', background: '#ddd', width: '100%', margin: '15px 0' }}></div>
-
-        {/* FOOTER: KPI LOGISTICOS Y TOTALES */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '20px' }}>
-          
-          {/* Izquierda: KPI Logísticos */}
-          <div style={{ width: '50%' }}>
-            <table style={{ width: '80%', fontSize: '11px', textAlign: 'left' }}>
-              <thead>
-                <tr>
-                  <th style={{ fontWeight: 'normal', paddingBottom: '5px' }}>Bultos</th>
-                  <th style={{ fontWeight: 'normal', paddingBottom: '5px' }}>Pallets</th>
-                  <th style={{ fontWeight: 'normal', paddingBottom: '5px' }}>Peso (Kgs)</th>
-                  <th style={{ fontWeight: 'normal', paddingBottom: '5px' }}>Unidades</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>{totalBultos}</td>
-                  <td>{pallets}</td>
-                  <td>0.00</td>
-                  <td>{totalUnidades}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* QR y CAE (Solo Factura A) */}
-            {isFacturaA && (
-              <div style={{ marginTop: '50px', display: 'flex', alignItems: 'flex-end', gap: '15px' }}>
-                {/* Simulador de QR */}
-                <div style={{ width: '80px', height: '80px', background: 'url(https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg)', backgroundSize: 'cover' }}></div>
+                <div style={{ width: '40%', textAlign: 'center', marginTop: '10px' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>
+                    {isFacturaA ? 'FACTURA A' : 'FACTURA X'}
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '10px' }}>
+                    N° {isFacturaA ? '00005' : '00001'} - {String(p.id).padStart(8, '0')}
+                  </div>
+                  <div style={{ fontSize: '12px', marginBottom: '5px' }}>
+                    Fecha: {fecha}
+                  </div>
+                  <div style={{ fontSize: '12px' }}>
+                    Vto. para el pago: {fechaVto}
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* Derecha: Totales */}
-          <div style={{ width: '40%', fontSize: '11px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>Importe Excento</span>
-              <span>$ 0,00</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>Importe Neto No Gravado</span>
-              <span>{isFacturaA ? '$ 0,00' : fmt(subtotal)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>Importe Neto Gravado</span>
-              <span>{isFacturaA ? fmt(subtotal) : '$ 0,00'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>IVA {isFacturaA ? '21%' : ''}</span>
-              <span>{fmt(iva)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', paddingTop: '5px', fontWeight: 'bold' }}>
-              <span>TOTAL</span>
-              <span>{fmt(total)}</span>
-            </div>
-            {isFacturaA && (
-              <div style={{ marginTop: '40px', textAlign: 'right', fontSize: '10px' }}>
-                <div>CAE Nº: 86240091668438</div>
-                <div>Fecha Vto. de CAE: 27/06/2026</div>
+              {/* HEADER BOTTOM ROW */}
+              <div style={{ display: 'flex', marginTop: '30px' }}>
+                <div style={{ width: '50%', textAlign: 'center' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '12px', marginBottom: '5px' }}>
+                    HOJA {pageIndex + 1}/{pages.length}
+                  </div>
+                  <div>IVA: Responsable Inscripto</div>
+                </div>
+                <div style={{ width: '1px', background: '#000' }}></div>
+                <div style={{ width: '50%', textAlign: 'center', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div>CUIT: 30718104137</div>
+                  <div>IIBB: {isFacturaA ? '30718104137' : ''}</div>
+                  <div>Inicio de actividad: {isFacturaA ? '01/09/2023' : '-'}</div>
+                </div>
               </div>
-            )}
-          </div>
-        </div>
+
+              <div style={{ height: '1px', background: '#000', width: '100%', margin: '10px 0' }}></div>
+
+              {/* DATOS DEL CLIENTE */}
+              <div style={{ fontSize: '11px', lineHeight: '1.8' }}>
+                <div>Señor(es): <strong>{p.empresa?.nombre}</strong></div>
+                <div>Domicilio: {p.empresa?.direccion || 'S/D'}</div>
+                <div>CUIT: {p.empresa?.cuit || 'Consumidor Final'}</div>
+                <div>IVA: Responsable Inscripto</div>
+              </div>
+
+              <div style={{ height: '1px', background: '#000', width: '100%', margin: '15px 0' }}></div>
+
+              {/* DATOS DE VENTA */}
+              <div style={{ fontSize: '11px', lineHeight: '1.8', marginBottom: '15px' }}>
+                <div>Remito: {String(p.id).padStart(5, '0')}-00000000</div>
+                <div>Orden de Compra: {p.id}</div>
+              </div>
+
+              {/* TABLA DE PRODUCTOS */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #ddd' }}>
+                    <th style={{ padding: '8px 0', textAlign: 'left', fontWeight: 'bold' }}>Código</th>
+                    <th style={{ padding: '8px 0', textAlign: 'left', fontWeight: 'bold' }}>Descripcion</th>
+                    <th style={{ padding: '8px 0', textAlign: 'center', fontWeight: 'bold' }}>Cantidad</th>
+                    <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>Precio unitario</th>
+                    <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>Bonif.</th>
+                    <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>IVA</th>
+                    <th style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>Importe</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageItems.map((d: any, idx: number) => {
+                    const q = d.cajasParaFactura
+                    const desc = `${d.producto?.codigoInterno || ''} - NEOSOL - ${d.producto?.nombre} ${d.producto?.descripcion || ''}`.trim()
+                    const unitPrice = d.esLineaBonus ? (d.producto?.precioCaja || d.precioCajaOriginal || 0) : (d.precioCajaSnapshot || 0)
+                    const sub = d.esLineaBonus ? 0 : q * unitPrice
+                    const bonifText = d.esLineaBonus ? `${fmt(unitPrice)} (100.00%)` : '$ 0,00 (0.00%)'
+                    
+                    return (
+                      <tr key={idx} style={{ verticalAlign: 'top' }}>
+                        <td style={{ padding: '8px 0', textAlign: 'left' }}>{d.producto?.codigoInterno || 'N/A'}</td>
+                        <td style={{ padding: '8px 0', textAlign: 'left', maxWidth: '300px' }}>{desc}</td>
+                        <td style={{ padding: '8px 0', textAlign: 'center' }}>{q.toFixed(2)}</td>
+                        <td style={{ padding: '8px 0', textAlign: 'right' }}>
+                          {d.esLineaBonus ? <span style={{textDecoration: 'line-through'}}>{fmt(unitPrice)}</span> : fmt(unitPrice)}
+                        </td>
+                        <td style={{ padding: '8px 0', textAlign: 'right' }}>{bonifText}</td>
+                        <td style={{ padding: '8px 0', textAlign: 'right' }}>$ 0,00</td>
+                        <td style={{ padding: '8px 0', textAlign: 'right' }}>{fmt(sub)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+
+              {/* FOOTER: KPI LOGISTICOS Y TOTALES (SOLO EN LA ÚLTIMA HOJA) */}
+              {isLastPage && (
+                <div style={{ position: 'absolute', bottom: '40px', left: '40px', right: '40px' }}>
+                  <div style={{ height: '1px', background: '#ddd', width: '100%', margin: '15px 0' }}></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '20px' }}>
+                    
+                    <div style={{ width: '50%' }}>
+                      <table style={{ width: '80%', fontSize: '11px', textAlign: 'left' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ fontWeight: 'normal', paddingBottom: '5px' }}>Bultos</th>
+                            <th style={{ fontWeight: 'normal', paddingBottom: '5px' }}>Pallets</th>
+                            <th style={{ fontWeight: 'normal', paddingBottom: '5px' }}>Peso (Kgs)</th>
+                            <th style={{ fontWeight: 'normal', paddingBottom: '5px' }}>Unidades</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>{totalBultos}</td>
+                            <td>{pallets}</td>
+                            <td>0.00</td>
+                            <td>{totalUnidades}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+
+                      {isFacturaA && (
+                        <div style={{ marginTop: '50px', display: 'flex', alignItems: 'flex-end', gap: '15px' }}>
+                          <div style={{ width: '80px', height: '80px', background: 'url(https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg)', backgroundSize: 'cover' }}></div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ width: '40%', fontSize: '11px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span>Importe Excento</span>
+                        <span>$ 0,00</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span>Importe Neto No Gravado</span>
+                        <span>{isFacturaA ? '$ 0,00' : fmt(subtotal)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span>Importe Neto Gravado</span>
+                        <span>{isFacturaA ? fmt(subtotal) : '$ 0,00'}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span>IVA {isFacturaA ? '21%' : ''}</span>
+                        <span>{fmt(iva)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', paddingTop: '5px', fontWeight: 'bold' }}>
+                        <span>TOTAL</span>
+                        <span>{fmt(total)}</span>
+                      </div>
+                      {isFacturaA && (
+                        <div style={{ marginTop: '40px', textAlign: 'right', fontSize: '10px' }}>
+                          <div>CAE Nº: 86240091668438</div>
+                          <div>Fecha Vto. de CAE: 27/06/2026</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     )
   }

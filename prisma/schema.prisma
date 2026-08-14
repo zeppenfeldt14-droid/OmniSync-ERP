@@ -267,6 +267,8 @@ model DetallePedido {
   cajasFacturaX      Int      @default(0)
   subtotal           Float    @default(0)
   cajasBonus         Int      @default(0)
+  cajasBonusFacturaA Int      @default(0)
+  cajasBonusFacturaX Int      @default(0)
   descripcionBonus   String?
   precioCajaOriginal Float    @default(0)
   pedido             Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)

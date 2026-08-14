@@ -107,13 +107,22 @@ export async function PATCH(request: Request, { params }: Params) {
       if (body.splits) {
         for (const detalle of (pedido as any).detalles) {
           const split = body.splits[detalle.productoId]
+          const bonusSplit = body.splits[`bonus_${detalle.productoId}`]
+          
+          let updateData: any = {}
           if (split) {
+            updateData.cajasFacturaA = split.A
+            updateData.cajasFacturaX = split.X
+          }
+          if (bonusSplit) {
+            updateData.cajasBonusFacturaA = bonusSplit.A
+            updateData.cajasBonusFacturaX = bonusSplit.X
+          }
+          
+          if (Object.keys(updateData).length > 0) {
             await prisma.detallePedido.update({
               where: { id: detalle.id },
-              data: {
-                cajasFacturaA: split.A,
-                cajasFacturaX: split.X
-              }
+              data: updateData
             })
           }
         }
