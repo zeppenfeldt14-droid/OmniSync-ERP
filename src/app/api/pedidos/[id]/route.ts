@@ -99,6 +99,22 @@ export async function PATCH(request: Request, { params }: Params) {
         fechaEntrega: body.fechaEntrega || null,
         metodoPagoB: body.metodoPagoB || null,
       }
+
+      // Guardar el desglose de cajasFacturaA y cajasFacturaX
+      if (body.splits) {
+        for (const detalle of (pedido as any).detalles) {
+          const split = body.splits[detalle.productoId]
+          if (split) {
+            await prisma.detallePedido.update({
+              where: { id: detalle.id },
+              data: {
+                cajasFacturaA: split.A,
+                cajasFacturaX: split.X
+              }
+            })
+          }
+        }
+      }
     } else if (accion === 'facturar') {
       if (session.nivel > 2)
         return NextResponse.json({ error: 'Sin permisos para facturar.' }, { status: 403 })

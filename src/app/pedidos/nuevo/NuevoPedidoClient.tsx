@@ -116,9 +116,6 @@ export function NuevoPedidoClient({ userNivel, userAlias, userZona }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState('')
 
-  // Facturacion Split Modal
-  const [showFacturaModal, setShowFacturaModal] = useState(false)
-  const [facturaSplits, setFacturaSplits] = useState<Record<number, { A: number, X: number }>>({})
   const [pendingSubmit, setPendingSubmit] = useState(false)
 
   // ── Fetch data on mount ──────────────────────────────────────────────────
@@ -506,24 +503,6 @@ export function NuevoPedidoClient({ userNivel, userAlias, userZona }: Props) {
       if (!fechaPagoA) { setError('Ingresa la fecha de vencimiento para la Parte A'); return }
     }
 
-    // Modal de Facturación antes de enviar
-    if (enviarAlSupervisor && !skipModal) {
-      // Calculate defaults
-      const defaults: Record<number, { A: number, X: number }> = {}
-      lineasPedido.filter(l => l.cantidadCajas > 0).forEach(l => {
-        const total = l.cantidadCajas
-        if (total === 15) { defaults[l.producto.id] = { A: 7, X: 8 } }
-        else if (total === 5) { defaults[l.producto.id] = { A: 2, X: 3 } }
-        else {
-          // Even or other odds
-          const halfA = Math.floor(total / 2)
-          defaults[l.producto.id] = { A: halfA, X: total - halfA }
-        }
-      })
-      setFacturaSplits(defaults)
-      setShowFacturaModal(true)
-      return
-    }
 
     setSubmitting(true)
     setError('')
@@ -553,8 +532,8 @@ export function NuevoPedidoClient({ userNivel, userAlias, userZona }: Props) {
               cajasBonus: l.cajasBonus,
               descripcionBonus: l.descripcionBonus,
               precioCajaSnapshot: l.precioCajaNegociado,
-              cajasFacturaA: facturaSplits[l.producto.id]?.A || 0,
-              cajasFacturaX: facturaSplits[l.producto.id]?.X || 0,
+              cajasFacturaA: 0,
+              cajasFacturaX: 0,
             })),
           condicionPago: condicion.label === 'Personalizada' ? `${pctA}/${pctB}` : condicion.label,
           porcentajePagoA: pctA,
@@ -1588,110 +1567,6 @@ export function NuevoPedidoClient({ userNivel, userAlias, userZona }: Props) {
       </div>
 
         <div className="md:hidden mt-4 pb-12">{renderNegociacionBlock()}</div>
-
-      {/* ── FACTURACION SPLIT MODAL ─────────────────────────────────────────── */}
-      {showFacturaModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-white font-bold flex items-center gap-2">
-                <FileText size={18} className="text-primary" />
-                Desglose para Facturación
-              </h2>
-              <button onClick={() => setShowFacturaModal(false)} className="text-secondary hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-4 overflow-y-auto flex-1 flex flex-col gap-4">
-              <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex gap-3">
-                <Info size={18} className="text-primary shrink-0 mt-0.5" />
-                <p className="text-white/80 text-xs leading-relaxed">
-                  Antes de enviar al supervisor, ajustá cómo se dividirán las cajas para la facturación. 
-                  <strong className="text-white"> La suma de Factura A + Factura X debe ser igual al total del pedido.</strong>
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {lineasPedido.filter(l => l.cantidadCajas > 0).map(l => {
-                  const split = facturaSplits[l.producto.id] || { A: 0, X: 0 }
-                  const valid = split.A + split.X === l.cantidadCajas
-                  return (
-                    <div key={l.producto.id} className={`p-3 rounded-xl border ${valid ? 'border-white/10 bg-black/30' : 'border-red-500/50 bg-red-500/10'}`}>
-                      <div className="flex flex-col md:flex-row justify-between md:items-center gap-3">
-                        <div className="flex flex-col">
-                          <span className="text-white text-sm font-bold">{l.producto.nombre}</span>
-                          <span className="text-secondary text-xs">Total Pedido: {l.cantidadCajas} cajas</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <label className="text-[10px] uppercase font-black text-secondary">Factura A:</label>
-                            <input
-                              type="number" min="0" max={l.cantidadCajas}
-                              value={split.A}
-                              onChange={e => {
-                                const val = parseInt(e.target.value) || 0
-                                setFacturaSplits(prev => ({
-                                  ...prev,
-                                  [l.producto.id]: { A: val, X: l.cantidadCajas - val }
-                                }))
-                              }}
-                              className="w-16 bg-black border border-white/20 rounded-lg px-2 py-1 text-white text-center text-sm"
-                            />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <label className="text-[10px] uppercase font-black text-secondary">Factura X:</label>
-                            <input
-                              type="number" min="0" max={l.cantidadCajas}
-                              value={split.X}
-                              onChange={e => {
-                                const val = parseInt(e.target.value) || 0
-                                setFacturaSplits(prev => ({
-                                  ...prev,
-                                  [l.producto.id]: { A: l.cantidadCajas - val, X: val }
-                                }))
-                              }}
-                              className="w-16 bg-black border border-white/20 rounded-lg px-2 py-1 text-white text-center text-sm"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-white/10 flex justify-end gap-3 bg-black/50">
-              <button 
-                onClick={() => setShowFacturaModal(false)}
-                className="btn text-secondary hover:text-white px-4 py-2"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={() => {
-                  const allValid = lineasPedido.filter(l => l.cantidadCajas > 0).every(l => {
-                    const split = facturaSplits[l.producto.id] || { A: 0, X: 0 }
-                    return split.A + split.X === l.cantidadCajas
-                  })
-                  if (!allValid) {
-                    alert("La suma de cajas A y X debe ser igual al total pedido para todos los productos.")
-                    return
-                  }
-                  setShowFacturaModal(false)
-                  handleGuardar(true, true)
-                }}
-                disabled={submitting}
-                className="btn btn-primary px-6 py-2 shadow-lg shadow-primary/20 flex items-center gap-2 font-bold"
-              >
-                <CheckCircle2 size={16} />
-                Confirmar y Enviar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   )

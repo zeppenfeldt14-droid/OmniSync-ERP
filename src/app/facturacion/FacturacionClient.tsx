@@ -147,7 +147,9 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
     let totalUnidades = 0
     let totalBultos = 0
     detallesFiltrados.forEach((d: any) => {
-      subtotal += d.cajasParaFactura * (d.precioCajaSnapshot || 0)
+      const isPromo = d.esPromocion || d.precioCajaSnapshot === 0 || d.subtotal === 0 || d.cajasBonus > 0
+      const sub = isPromo ? 0 : d.cajasParaFactura * (d.precioCajaSnapshot || 0)
+      subtotal += sub
       totalBultos += d.cajasParaFactura
       totalUnidades += d.cajasParaFactura * (d.paqPorCajaSnapshot || 0)
     })
@@ -275,14 +277,17 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
             {detallesFiltrados.map((d: any, idx: number) => {
               const q = d.cajasParaFactura
               const desc = `${d.producto?.codigoInterno || ''} - NEOSOL - ${d.producto?.nombre} ${d.producto?.descripcion || ''}`.trim()
-              const sub = q * (d.precioCajaSnapshot || 0)
+              const isPromo = d.esPromocion || d.precioCajaSnapshot === 0 || d.subtotal === 0 || d.cajasBonus > 0
+              const unitPrice = isPromo ? (d.producto?.precioCaja || d.precioCajaOriginal || 0) : (d.precioCajaSnapshot || 0)
+              const sub = isPromo ? 0 : q * unitPrice
+              const bonifText = isPromo ? `${fmt(unitPrice)} (100.00%)` : '$ 0,00 (0.00%)'
               return (
                 <tr key={idx} style={{ verticalAlign: 'top' }}>
                   <td style={{ padding: '8px 0', textAlign: 'left' }}>{d.producto?.codigoInterno || 'N/A'}</td>
                   <td style={{ padding: '8px 0', textAlign: 'left', maxWidth: '300px' }}>{desc}</td>
                   <td style={{ padding: '8px 0', textAlign: 'center' }}>{q.toFixed(2)}</td>
-                  <td style={{ padding: '8px 0', textAlign: 'right' }}>{fmt(d.precioCajaSnapshot || 0)}</td>
-                  <td style={{ padding: '8px 0', textAlign: 'right' }}>$ 0,00 (0.00%)</td>
+                  <td style={{ padding: '8px 0', textAlign: 'right' }}>{fmt(unitPrice)}</td>
+                  <td style={{ padding: '8px 0', textAlign: 'right' }}>{bonifText}</td>
                   <td style={{ padding: '8px 0', textAlign: 'right' }}>$ 0,00</td>
                   <td style={{ padding: '8px 0', textAlign: 'right' }}>{fmt(sub)}</td>
                 </tr>

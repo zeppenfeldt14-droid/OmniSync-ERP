@@ -17,7 +17,7 @@ import html2canvas from 'html2canvas'
 interface Props {
   pedido: any
   onClose: () => void
-  onStateChange?: (id: number, action: string) => void
+  onStateChange?: (id: number, action: string, data?: any) => void
   onRequestFacturar?: () => void
   userNivel?: number
 }
@@ -43,6 +43,12 @@ export function PedidoDetalleModal({ pedido, onClose, onStateChange, onRequestFa
   const [activeList, setActiveList] = useState<any>(null)
   const [loadingList, setLoadingList] = useState(true)
   
+  // Modal de Aprobación/Facturación
+  const [showFacturaModal, setShowFacturaModal] = useState(false)
+  const [facturaSplits, setFacturaSplits] = useState<Record<number, { A: number, X: number }>>({})
+  const [fechaEntrega, setFechaEntrega] = useState(pedido.fechaEntrega ? new Date(pedido.fechaEntrega).toISOString().split('T')[0] : '')
+  const [metodoPagoB, setMetodoPagoB] = useState('Efectivo')
+
   useEffect(() => {
     fetch('/api/configuracion/tarifas')
       .then(r => r.json())
@@ -428,7 +434,22 @@ export function PedidoDetalleModal({ pedido, onClose, onStateChange, onRequestFa
                       if (onRequestFacturar) {
                         onRequestFacturar();
                       } else {
-                        onStateChange(pedido.id, 'aprobar');
+                        // Calcular defaults
+                        const defaults: Record<number, { A: number, X: number }> = {}
+                        pedido.detalles.forEach((l: any) => {
+                          const total = l.cantidadCajas
+                          // Por defecto cajas bonificadas van a Factura X
+                          if (l.esPromocion || l.precioCajaSnapshot === 0 || l.subtotal === 0) {
+                            defaults[l.productoId] = { A: 0, X: total }
+                          } else if (total === 15) { defaults[l.productoId] = { A: 7, X: 8 } }
+                          else if (total === 5) { defaults[l.productoId] = { A: 2, X: 3 } }
+                          else {
+                            const halfA = Math.floor(total / 2)
+                            defaults[l.productoId] = { A: halfA, X: total - halfA }
+                          }
+                        })
+                        setFacturaSplits(defaults)
+                        setShowFacturaModal(true)
                       }
                     }}
                     className="btn btn-primary text-xs bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30 font-bold"
@@ -461,6 +482,142 @@ export function PedidoDetalleModal({ pedido, onClose, onStateChange, onRequestFa
           </button>
         </div>
       </div>
+
+      {showFacturaModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <h2 className="text-white font-bold flex items-center gap-2">
+                <FileText size={18} className="text-primary" />
+                Aprobar Pedido y Desglosar Facturación
+              </h2>
+              <button onClick={() => setShowFacturaModal(false)} className="text-secondary hover:text-white">
+                <XCircle size={20} />
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto flex-1 flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] text-secondary uppercase font-bold mb-1">Fecha de Entrega</label>
+                  <input
+                    type="date"
+                    value={fechaEntrega}
+                    onChange={e => setFechaEntrega(e.target.value)}
+                    className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-secondary uppercase font-bold mb-1">Modo de Pago (Remito)</label>
+                  <select
+                    value={metodoPagoB}
+                    onChange={e => setMetodoPagoB(e.target.value)}
+                    className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-primary"
+                  >
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia</option>
+                  </select>
+                </div>
+              </div>
+
+              <h3 className="text-white font-bold text-xs mt-2 border-b border-white/10 pb-2">Distribución de Cajas</h3>
+
+              <div className="flex flex-col gap-2">
+                {pedido.detalles.map((l: any) => {
+                  const split = facturaSplits[l.productoId] || { A: 0, X: 0 }
+                  const valid = split.A + split.X === l.cantidadCajas
+                  const esPromo = l.esPromocion || l.precioCajaSnapshot === 0 || l.subtotal === 0
+                  
+                  return (
+                    <div key={l.productoId} className={`p-3 rounded-xl border ${valid ? 'border-white/10 bg-black/30' : 'border-red-500/50 bg-red-500/10'}`}>
+                      <div className="flex flex-col md:flex-row justify-between md:items-center gap-3">
+                        <div className="flex flex-col flex-1">
+                          <span className="text-white text-sm font-bold flex items-center gap-2">
+                            {l.productoNombre}
+                            {esPromo && <span className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-[9px] font-black uppercase">Bonificadas 100%</span>}
+                          </span>
+                          <span className="text-secondary text-xs">Total Pedido: <strong className="text-white">{l.cantidadCajas} cajas</strong></span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <label className="text-[10px] uppercase font-black text-secondary">Factura A:</label>
+                            <input
+                              type="number" min="0" max={l.cantidadCajas}
+                              value={split.A}
+                              onChange={e => {
+                                const val = parseInt(e.target.value) || 0
+                                setFacturaSplits(prev => ({
+                                  ...prev,
+                                  [l.productoId]: { A: val, X: l.cantidadCajas - val }
+                                }))
+                              }}
+                              className="w-16 bg-black border border-white/20 rounded-lg px-2 py-1 text-white text-center text-sm focus:border-primary outline-none"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-[10px] uppercase font-black text-secondary">Factura X:</label>
+                            <input
+                              type="number" min="0" max={l.cantidadCajas}
+                              value={split.X}
+                              onChange={e => {
+                                const val = parseInt(e.target.value) || 0
+                                setFacturaSplits(prev => ({
+                                  ...prev,
+                                  [l.productoId]: { A: l.cantidadCajas - val, X: val }
+                                }))
+                              }}
+                              className={`w-16 bg-black border rounded-lg px-2 py-1 text-center text-sm outline-none ${valid ? 'border-white/20 text-white focus:border-primary' : 'border-red-500 text-red-500'}`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-white/10 flex justify-end gap-3 bg-black/50">
+              <button 
+                onClick={() => setShowFacturaModal(false)}
+                className="btn text-secondary hover:text-white px-4 py-2"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={() => {
+                  const allValid = pedido.detalles.every((l: any) => {
+                    const split = facturaSplits[l.productoId] || { A: 0, X: 0 }
+                    return split.A + split.X === l.cantidadCajas
+                  })
+                  if (!allValid) {
+                    alert("La suma de cajas A y X debe ser igual al total pedido para todos los productos.")
+                    return
+                  }
+                  if (!fechaEntrega) {
+                    alert("Por favor ingrese una fecha de entrega.")
+                    return
+                  }
+                  
+                  if (onStateChange) {
+                    onStateChange(pedido.id, 'aprobar', { 
+                      splits: facturaSplits, 
+                      fechaEntrega, 
+                      metodoPagoB 
+                    })
+                  }
+                  setShowFacturaModal(false)
+                  onClose()
+                }}
+                className="btn btn-primary px-6 py-2 shadow-lg shadow-primary/20 flex items-center gap-2 font-bold"
+              >
+                Confirmar y Aprobar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
