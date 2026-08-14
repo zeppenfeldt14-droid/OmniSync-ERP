@@ -185,17 +185,15 @@ export default function FacturacionClient({ userNivel, userAlias, userZona, zona
         {/* HEADER TOP ROW: LOGO/EMISOR | TIPO | DATOS FACTURA */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           {/* Columna Izquierda: Logo / Nombre */}
-          <div style={{ width: '40%', paddingTop: isFacturaA ? '10px' : '0' }}>
-            {!isFacturaA && (
+          <div style={{ width: '40%', paddingTop: '10px' }}>
+            {logo && (
               <img 
-                src={logo || '/omnisync-logo.png'} 
-                crossOrigin="anonymous"
-                style={{ maxHeight: '60px', marginBottom: '15px', display: 'block' }} 
+                src={logo}
+                crossOrigin={logo.startsWith('data:') ? undefined : 'anonymous'}
+                style={{ maxHeight: '70px', marginBottom: '10px', display: 'block', objectFit: 'contain' }} 
                 alt="Logo" 
               />
             )}
-            {isFacturaA && <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px' }}>Pro Biscuit S.A.</div>}
-            {!isFacturaA && <div style={{ fontSize: '14px', marginBottom: '5px' }}>Neosol</div>}
             <div style={{ fontSize: '12px' }}>
               General Lavalle 399 Piso:0 - Avellaneda, Buenos Aires
             </div>
