@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { X, Building2, Plus, Sparkles, Loader2, Globe, Truck, Laptop, DollarSign, CheckCircle2 } from 'lucide-react'
+import { X, Building2, Plus, Loader2, Globe, Truck, Laptop } from 'lucide-react'
 import { useTenant } from '@/lib/tenantContext'
 
 interface Props {
@@ -14,7 +14,7 @@ export default function CreateTenantModal({ isOpen, onClose, onSuccess }: Props)
   const { refreshTenants, setActiveTenant } = useTenant()
   const [nombre, setNombre] = useState('')
   const [slug, setSlug] = useState('')
-  const [descripcion, setDescripcion] = useState('')
+  const [descripcion] = useState('')
   const [tipoModelo, setTipoModelo] = useState<'SERVICIOS_DIGITALES' | 'FISICO_TERRENO' | 'HIBRIDO'>('SERVICIOS_DIGITALES')
   const [colorPrimario, setColorPrimario] = useState('#10b981')
   const [moneda, setMoneda] = useState('ARS')
@@ -69,8 +69,9 @@ export default function CreateTenantModal({ isOpen, onClose, onSuccess }: Props)
       setActiveTenant(data)
       if (onSuccess) onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message || 'Error al procesar la solicitud')
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Error al procesar la solicitud'
+      setError(errorMsg)
     } finally {
       setIsSubmitting(false)
     }
@@ -85,10 +86,14 @@ export default function CreateTenantModal({ isOpen, onClose, onSuccess }: Props)
       padding: '1.5rem'
     }}>
       <div style={{
-        backgroundColor: '#1e293b',
+        backgroundColor: '#0f172a',
         border: '1px solid rgba(255,255,255,0.1)',
         borderRadius: '16px',
-        width: '100%', maxWidth: '600px',
+        width: '100%',
+        maxWidth: '560px',
+        maxHeight: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
         boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
         overflow: 'hidden'
       }}>
@@ -96,110 +101,120 @@ export default function CreateTenantModal({ isOpen, onClose, onSuccess }: Props)
         <div style={{
           padding: '1.25rem 1.5rem',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'linear-gradient(135deg, rgba(59,130,246,0.1), rgba(16,185,129,0.1))'
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: 'rgba(255,255,255,0.02)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: '40px', height: '40px', borderRadius: '10px',
-              backgroundColor: 'rgba(59,130,246,0.2)', color: '#60a5fa',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
+              width: '36px', height: '36px', borderRadius: '10px',
+              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#10b981'
             }}>
-              <Building2 size={22} />
+              <Building2 size={20} />
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
-                Nueva Unidad de Negocio / Marca Blanca
+                Nueva Unidad de Negocio / Inquilino
               </h3>
               <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>
-                Crea un nuevo inquilino con su propio catálogo, precios y carteras de clientes.
+                Configuración de Marca Blanca y Modelo Comercial
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '6px' }}
+            style={{
+              background: 'transparent', border: 'none', color: '#94a3b8',
+              cursor: 'pointer', padding: '4px', borderRadius: '6px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* Content Form */}
+        <form onSubmit={handleSubmit} style={{ padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {error && (
             <div style={{
-              padding: '0.75rem', borderRadius: '8px',
+              padding: '0.75rem 1rem', borderRadius: '8px',
               backgroundColor: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
-              color: '#f87171', fontSize: '0.8rem'
+              color: '#f87171', fontSize: '0.85rem'
             }}>
               {error}
             </div>
           )}
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
-              Nombre de la Unidad de Negocio *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="Ej: Páginas Web PyMEs, Consultoría SEO, Equipos Venta Directa"
-              value={nombre}
-              onChange={handleNameChange}
-              style={{
-                width: '100%', padding: '8px 12px', borderRadius: '8px',
-                backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)',
-                color: '#f8fafc', fontSize: '0.85rem'
-              }}
-            />
-          </div>
-
+          {/* Nombre y Slug */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
-                Identificador (Slug) *
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                Nombre de la Marca / Unidad *
+              </label>
+              <input
+                type="text"
+                required
+                value={nombre}
+                onChange={handleNameChange}
+                placeholder="Ej: Soluciones Web & PyMEs"
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: '8px',
+                  backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#f8fafc', fontSize: '0.9rem', outline: 'none'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                Slug / Identificador *
               </label>
               <input
                 type="text"
                 required
                 value={slug}
-                onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                placeholder="ej: soluciones-web"
                 style={{
-                  width: '100%', padding: '8px 12px', borderRadius: '8px',
-                  backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#38bdf8', fontSize: '0.85rem', fontWeight: 600
+                  width: '100%', padding: '10px 12px', borderRadius: '8px',
+                  backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#94a3b8', fontSize: '0.9rem', outline: 'none', fontFamily: 'monospace'
                 }}
               />
             </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
-                Moneda Principal
-              </label>
-              <select
-                value={moneda}
-                onChange={e => setMoneda(e.target.value)}
-                style={{
-                  width: '100%', padding: '8px 12px', borderRadius: '8px',
-                  backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#f8fafc', fontSize: '0.85rem'
-                }}
-              >
-                <option value="ARS">ARS ($ - Pesos Argentinos)</option>
-                <option value="USD">USD ($ - Dólares Estadounidenses)</option>
-              </select>
-            </div>
           </div>
 
+          {/* Moneda */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '6px' }}>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+              Moneda Principal
+            </label>
+            <select
+              value={moneda}
+              onChange={e => setMoneda(e.target.value)}
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: '8px',
+                backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                color: '#f8fafc', fontSize: '0.9rem', outline: 'none'
+              }}
+            >
+              <option value="ARS" style={{ backgroundColor: '#0f172a', color: '#f8fafc' }}>ARS ($ - Pesos Argentinos)</option>
+              <option value="USD" style={{ backgroundColor: '#0f172a', color: '#f8fafc' }}>USD ($ - Dólares Estadounidenses)</option>
+            </select>
+          </div>
+
+          {/* Tipo de Modelo */}
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '8px' }}>
               Tipo de Modelo Comercial
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
               {[
-                { id: 'SERVICIOS_DIGITALES', label: 'Servicios Web / PyMEs', icon: Laptop, color: '#10b981' },
-                { id: 'FISICO_TERRENO', label: 'Equipos en Terreno', icon: Truck, color: '#3b82f6' },
-                { id: 'HIBRIDO', label: 'Híbrido', icon: Globe, color: '#a855f7' }
+                { id: 'SERVICIOS_DIGITALES' as const, label: 'Servicios Web / PyMEs', icon: Laptop, color: '#10b981' },
+                { id: 'FISICO_TERRENO' as const, label: 'Equipos en Terreno', icon: Truck, color: '#3b82f6' },
+                { id: 'HIBRIDO' as const, label: 'Híbrido', icon: Globe, color: '#a855f7' }
               ].map(t => {
                 const Icon = t.icon
                 const isSelected = tipoModelo === t.id
@@ -208,7 +223,7 @@ export default function CreateTenantModal({ isOpen, onClose, onSuccess }: Props)
                     type="button"
                     key={t.id}
                     onClick={() => {
-                      setTipoModelo(t.id as any)
+                      setTipoModelo(t.id)
                       setColorPrimario(t.color)
                     }}
                     style={{

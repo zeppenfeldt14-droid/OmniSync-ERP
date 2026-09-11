@@ -17,7 +17,6 @@ import {
   Package,
   Calendar,
   Eye,
-  Check,
   Building2
 } from 'lucide-react'
 import Papa from 'papaparse'
@@ -537,7 +536,7 @@ export default function BulkPriceSheetSyncModal({
                 <span>¡Sincronización Exitosa!</span>
               </div>
               <p style={{ margin: 0 }}>
-                Se procesaron <strong>{syncResult.validCount}</strong> ítems en la lista <strong>"{syncResult.listaNombre}"</strong> ({syncResult.createdCount} nuevos, {syncResult.updatedCount} actualizados).
+                Se procesaron <strong>{syncResult.validCount}</strong> ítems en la lista <strong>&quot;{syncResult.listaNombre}&quot;</strong> ({syncResult.createdCount} nuevos, {syncResult.updatedCount} actualizados).
               </p>
             </div>
           )}

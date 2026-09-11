@@ -15,7 +15,7 @@ export interface TenantData {
   moneda: string
   sheetUrl: string | null
   sheetUltimaSync: string | null
-  configuracion: Record<string, any>
+  configuracion: Record<string, unknown>
   activo: boolean
 }
 
@@ -82,7 +82,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           // Keep current active or fallback to saved / first
           const savedSlug = typeof window !== 'undefined' ? localStorage.getItem('omnisync_active_tenant_slug') : null
           const found = data.find((t: TenantData) => t.slug === savedSlug) || data[0]
-          setActiveTenantState(found)
+          if (found) setActiveTenantState(found)
         }
       }
     } catch (e) {
@@ -93,12 +93,6 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    // Initial load
-    const savedSlug = typeof window !== 'undefined' ? localStorage.getItem('omnisync_active_tenant_slug') : null
-    if (savedSlug) {
-      const found = DEFAULT_TENANTS.find(t => t.slug === savedSlug)
-      if (found) setActiveTenantState(found)
-    }
     refreshTenants()
   }, [refreshTenants])
 
