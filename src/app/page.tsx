@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { getSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { InicioPageClient } from './InicioPageClient'
@@ -12,14 +13,45 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     redirect('/login')
   }
 
+  const headersList = await headers()
+  const tenantSlug = headersList.get('x-tenant-slug')
+  const pathname = headersList.get('x-pathname') || ''
+
+  // 1. Root route redirect: send users directly to their designated workspace
+  if (pathname === '/') {
+    if (user.alias === 'Elarez' || (user.nivel === 1 && !user.tenantId)) {
+      redirect('/super-admin')
+    }
+    if (user.tenantId === 2 || user.alias === 'vinnaty') {
+      redirect('/vinnaty')
+    }
+    if (user.tenantId === 1 || user.alias === 'admin') {
+      redirect('/golocinas')
+    }
+  }
+
+  // 2. Resolve active tenant for data isolation
+  let currentTenantId: number = user.tenantId || 1
+  if (tenantSlug) {
+    const matchedTenant = await prisma.tenant.findUnique({
+      where: { slug: tenantSlug.toLowerCase() },
+      select: { id: true }
+    })
+    if (matchedTenant) {
+      currentTenantId = matchedTenant.id
+    }
+  } else if (user.tenantId) {
+    currentTenantId = user.tenantId
+  }
+
   const modules = typeof user.modulos === 'string' ? JSON.parse(user.modulos) : (user.modulos || {})
 
   // If Zonas is explicitly disabled AND they deactivated the new Inicio module
   if (modules.inicio === false) {
     if (modules.zonas !== false) {
-      let targetZone = 'CABA'
+      let targetZone = 'Zona 1'
       if (user.nivel === 3) {
-        targetZone = user.zona || 'CABA'
+        targetZone = user.zona || 'Zona 1'
       } else {
         let enabledZones: string[] = []
         try {
@@ -53,10 +85,11 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
   const userAlias = isVendedor ? user.alias : queryVendedor
   const hasVendedorFilter = Boolean(userAlias)
 
-  const userZona = user.zona
-
-  // Get available zones for the user
-  const allZones = await prisma.zona.findMany({ orderBy: { nombre: 'asc' } })
+  // Get available zones for the active tenant
+  const allZones = await prisma.zona.findMany({ 
+    where: { tenantId: currentTenantId },
+    orderBy: { nombre: 'asc' } 
+  })
   const allZoneNames = allZones.map(z => z.nombre)
   
   let availableZones: string[] = []
@@ -73,7 +106,7 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     } catch (e) {}
     availableZones = allZoneNames.filter(z => habilitadas.includes(z))
   } else {
-    availableZones = [user.zona || 'Sin Zona']
+    availableZones = [user.zona || (allZoneNames[0] || 'Sin Zona')]
   }
 
   // Parse selected zones from query param
@@ -84,13 +117,12 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     selectedZones = availableZones
   } else {
     selectedZones = zoneParam.split(',').filter(z => availableZones.includes(z))
-    // Fallback if somehow selection is empty
     if (selectedZones.length === 0) {
       selectedZones = availableZones
     }
   }
 
-  const zoneFilter = { in: selectedZones }
+  const zoneFilter = selectedZones.length > 0 ? { in: selectedZones } : undefined
 
   // Date Filtering Logic
   const now = new Date()
@@ -132,7 +164,7 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     }
 
     if (selectedMonths.length === 0) {
-      isPeriodFiltered = false // Fallback if no valid months
+      isPeriodFiltered = false
     } else {
       dateFilters = selectedMonths.map(m => {
         const start = new Date(now.getFullYear(), m, 1, 0, 0, 0)
@@ -142,13 +174,14 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     }
   }
 
-  // Queries
+  // Queries isolated by currentTenantId
   // 1. Facturas
   const facturasMes = await prisma.factura.findMany({
     where: {
       NOT: { estado: 'anulada' },
       pedido: {
-        zona: zoneFilter,
+        tenantId: currentTenantId,
+        ...(zoneFilter ? { zona: zoneFilter } : {}),
         ...(isVendedor ? { vendedorAlias: userAlias } : {})
       },
       ...(isPeriodFiltered ? {
@@ -170,8 +203,8 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
       AND: [
         {
           OR: [
-            { cobranza: { zona: zoneFilter } },
-            { factura: { pedido: { zona: zoneFilter } } }
+            { cobranza: { tenantId: currentTenantId, ...(zoneFilter ? { zona: zoneFilter } : {}) } },
+            { factura: { pedido: { tenantId: currentTenantId, ...(zoneFilter ? { zona: zoneFilter } : {}) } } }
           ]
         },
         ...(hasVendedorFilter ? [{
@@ -191,7 +224,8 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
   // 3. Cobranza Pendiente
   const cobranzasMes = await prisma.cobranza.findMany({
     where: {
-      zona: zoneFilter,
+      tenantId: currentTenantId,
+      ...(zoneFilter ? { zona: zoneFilter } : {}),
       ...(hasVendedorFilter ? { vendedorAlias: userAlias } : {}),
       ...(isPeriodFiltered ? {
         OR: dateFilters.map(filter => ({ creadoEn: filter }))
@@ -200,41 +234,12 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
   })
   const cobranzaPendiente = cobranzasMes.reduce((acc, c) => acc + c.saldoPendiente, 0)
 
-  // 4. Auto-heal test data for promotions if none have it
-  const promoCount = await prisma.pedido.count({
-    where: { estado: 'aprobado', NOT: { promocionId: null } }
-  })
-  if (promoCount === 0) {
-    const approvedPedidos = await prisma.pedido.findMany({
-      where: { estado: 'aprobado' },
-      take: 15,
-      include: { detalles: true }
-    })
-    // Seed details with boxes bonus if they don't have it
-    for (let i = 0; i < approvedPedidos.length; i++) {
-      const p = approvedPedidos[i]
-      const randomPromoId = (i % 3) + 1
-      await prisma.pedido.update({
-        where: { id: p.id },
-        data: { promocionId: randomPromoId }
-      })
-      if (p.detalles.length > 0) {
-        await prisma.detallePedido.update({
-          where: { id: p.detalles[0].id },
-          data: {
-            cajasBonus: Math.floor(Math.random() * 4) + 1,
-            descripcionBonus: 'Bonus de Promoción'
-          }
-        })
-      }
-    }
-  }
-
-  // 5. Cajas Vendidas (cajas in approved orders)
+  // 4. Target Pedidos (approved orders)
   const targetPedidos = await prisma.pedido.findMany({
     where: {
+      tenantId: currentTenantId,
       estado: 'aprobado',
-      zona: zoneFilter,
+      ...(zoneFilter ? { zona: zoneFilter } : {}),
       ...(hasVendedorFilter ? { vendedorAlias: userAlias } : {}),
       ...(isPeriodFiltered ? {
         OR: dateFilters.map(filter => ({ creadoEn: filter }))
@@ -253,25 +258,28 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
   // 5. Clientes
   const clientesActivos = await prisma.empresa.count({
     where: {
+      tenantId: currentTenantId,
       estado: 'activo',
-      zona: zoneFilter,
+      ...(zoneFilter ? { zona: zoneFilter } : {}),
       ...(hasVendedorFilter ? { vendedorAsignado: userAlias } : {})
     }
   })
   const clientesProspecto = await prisma.empresa.count({
     where: {
+      tenantId: currentTenantId,
       estado: 'prospecto',
-      zona: zoneFilter,
+      ...(zoneFilter ? { zona: zoneFilter } : {}),
       ...(hasVendedorFilter ? { vendedorAsignado: userAlias } : {})
     }
   })
 
-  // Recent Activities (Filtered by zone for better UX)
+  // Recent Activities
   const recentPedidos = await prisma.pedido.findMany({
     take: 10,
     orderBy: { creadoEn: 'desc' },
     where: {
-      zona: zoneFilter,
+      tenantId: currentTenantId,
+      ...(zoneFilter ? { zona: zoneFilter } : {}),
       ...(hasVendedorFilter ? { vendedorAlias: userAlias } : {})
     },
     include: { empresa: true }
@@ -282,7 +290,8 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     orderBy: { creadoEn: 'desc' },
     where: {
       pedido: {
-        zona: zoneFilter,
+        tenantId: currentTenantId,
+        ...(zoneFilter ? { zona: zoneFilter } : {}),
         ...(hasVendedorFilter ? { vendedorAlias: userAlias } : {})
       }
     },
@@ -296,7 +305,6 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
   })
 
   // Chart aggregations
-  // A. Product Sales (Top 10 list at the bottom)
   const productMap: Record<string, number> = {}
   for (const p of targetPedidos) {
     for (const d of p.detalles) {
@@ -308,7 +316,6 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     .sort((a, b) => b.value - a.value)
     .slice(0, 10)
 
-  // B. Sales by Zone (Vertical Bar Chart)
   const zoneMap: Record<string, number> = {}
   for (const f of facturasMes) {
     const zone = f.pedido.zona || 'Sin Zona'
@@ -316,7 +323,6 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
   }
   const chartZonas = Object.entries(zoneMap).map(([zone, sales]) => ({ zone, sales }))
 
-  // C. Collected by Method (Horizontal Bar Chart)
   const methodMap: Record<string, number> = {}
   for (const p of pagosMes) {
     const method = (p.metodoPago || 'Efectivo').toUpperCase()
@@ -324,7 +330,6 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
   }
   const chartMetodos = Object.entries(methodMap).map(([method, amount]) => ({ method, amount }))
 
-  // G. Cobranza Pendiente por Zona (Pie Chart)
   const cobranzaZoneMap: Record<string, number> = {}
   for (const c of cobranzasMes) {
     const zone = c.zona || 'Sin Zona'
@@ -334,8 +339,7 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
 
-  // D. Promotions in Sales (Horizontal Bar Chart - Boxes)
-  // Includes cajasBonus (regalo de promo) in the count
+  // Promotions in Sales
   const promos = await prisma.promocion.findMany()
   const promoMap = new Map(promos.map(p => [p.id, p.nombre]))
   const promoSalesMap: Record<string, number> = {}
@@ -350,7 +354,6 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
 
-  // E. Snacks Sales (Vertical Bar Chart) — case-insensitive linea filter
   const snacksMap: Record<string, number> = {}
   for (const p of targetPedidos) {
     for (const d of p.detalles) {
@@ -364,7 +367,6 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
 
-  // F. Tripacks Sales (Vertical Bar Chart) — case-insensitive linea filter
   const tripacksMap: Record<string, number> = {}
   for (const p of targetPedidos) {
     for (const d of p.detalles) {
@@ -378,12 +380,11 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
 
-  // G. Heatmap Data — Empresas con coordenadas + conteo de visitas y ventas
-  // Obtiene empresas de las zonas seleccionadas que tienen coordenadas cargadas
-  // NOTA: Prisma requiere AND con NOT separados para campos nullable
+  // Heatmap Data — strictly isolated by currentTenantId
   const empresasGeo = await prisma.empresa.findMany({
     where: {
-      zona: zoneFilter,
+      tenantId: currentTenantId,
+      ...(zoneFilter ? { zona: zoneFilter } : {}),
       ...(hasVendedorFilter ? { vendedorAsignado: userAlias } : {}),
       AND: [
         { NOT: { latitud: null } },
@@ -434,7 +435,7 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     }
   })
 
-  // Format heatmap points: [lat, lng, intensity]
+  // Format heatmap points
   const heatmapVisitas = empresasGeo
     .filter(e => e.visitas.length > 0 || e.acciones.length > 0 || e.notasPlanificador.length > 0 || e.pedidos.length > 0)
     .map(e => {
@@ -464,7 +465,7 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     .map(e => {
       const weight = e.pedidos.reduce((acc, p) => {
         const cajas = p.detalles.reduce((sum, d) => sum + d.cantidadCajas + d.cajasBonus, 0)
-        return acc + (cajas > 0 ? cajas : 1) // Fallback to 1 point if order has 0 boxes
+        return acc + (cajas > 0 ? cajas : 1)
       }, 0)
       return {
         lat: e.latitud!,
@@ -480,7 +481,8 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
 
   const totalEmpresasZone = await prisma.empresa.count({
     where: {
-      zona: zoneFilter,
+      tenantId: currentTenantId,
+      ...(zoneFilter ? { zona: zoneFilter } : {}),
       ...(hasVendedorFilter ? { vendedorAsignado: userAlias } : {})
     }
   })
@@ -533,25 +535,24 @@ export default async function IndexPage({ searchParams }: { searchParams: Promis
     selectedZones
   }
 
-  // Fetch available sellers in the selected zones
+  // Sellers in the selected zones
   const usuariosActivos = await prisma.usuario.findMany({
-    where: { activo: true },
+    where: { 
+      tenantId: currentTenantId,
+      activo: true 
+    },
     select: { alias: true, zona: true, nombre: true, nivel: true, limitesEstado: true }
   })
   
   const vendedoresDisponibles = usuariosActivos.filter(u => {
-    // Si es vendedor (nivel 3) en la zona seleccionada
-    if (u.nivel === 3 && selectedZones.includes(u.zona || '')) return true;
-    
-    // O si tiene las metas comerciales activadas
+    if (u.nivel === 3 && selectedZones.includes(u.zona || '')) return true
     try {
       const limites = typeof u.limitesEstado === 'string' 
         ? JSON.parse(u.limitesEstado) 
-        : (u.limitesEstado || {});
-      if (limites.metasActivas) return true;
+        : (u.limitesEstado || {})
+      if (limites.metasActivas) return true
     } catch(e) {}
-    
-    return false;
+    return false
   }).map(u => ({ alias: u.alias, zona: u.zona, nombre: u.nombre }))
 
   return (

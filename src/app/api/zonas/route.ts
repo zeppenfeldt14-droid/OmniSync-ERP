@@ -11,10 +11,17 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const tenantIdParam = searchParams.get('tenantId')
+    const tenantSlug = request.headers.get('x-tenant-slug')
+
+    let targetTenantId = session.tenantId || (tenantIdParam ? parseInt(tenantIdParam) : null)
+    if (!targetTenantId && tenantSlug) {
+      const t = await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
+      if (t) targetTenantId = t.id
+    }
 
     const where: any = {}
-    if (tenantIdParam) {
-      where.tenantId = parseInt(tenantIdParam)
+    if (targetTenantId) {
+      where.tenantId = targetTenantId
     }
 
     const zonas = await prisma.zona.findMany({

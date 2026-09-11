@@ -3,14 +3,34 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser, hashPassword, registrarAccion } from '@/lib/auth'
 
 // GET: List all users (N1 only)
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getSessionUser()
     if (!session || session.nivel !== 1) {
       return NextResponse.json({ error: 'Acceso denegado.' }, { status: 403 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const tenantParam = searchParams.get('tenantId')
+    const tenantSlug = request.headers.get('x-tenant-slug')
+
+    let targetTenantId = session.tenantId
+    if (!targetTenantId) {
+      if (tenantParam) {
+        targetTenantId = parseInt(tenantParam)
+      } else if (tenantSlug) {
+        const t = await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
+        if (t) targetTenantId = t.id
+      }
+    }
+
+    const where: any = {}
+    if (targetTenantId) {
+      where.tenantId = targetTenantId
+    }
+
     const usuarios = await prisma.usuario.findMany({
+      where: Object.keys(where).length > 0 ? where : undefined,
       orderBy: { nombre: 'asc' },
       select: {
         id: true,
@@ -31,6 +51,7 @@ export async function GET() {
         passwordUpdatedAt: true,
         isNivelTodo: true,
         unidadesNegocio: true,
+        tenantId: true,
         creadoEn: true,
         actualizadoEn: true
       }
@@ -162,6 +183,15 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(password)
 
+    let targetTenantId = session.tenantId || (body.tenantId ? parseInt(body.tenantId) : null)
+    if (!targetTenantId) {
+      const tenantSlug = request.headers.get('x-tenant-slug')
+      if (tenantSlug) {
+        const t = await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
+        if (t) targetTenantId = t.id
+      }
+    }
+
     const newUser = await prisma.usuario.create({
       data: {
         nombre,
@@ -178,6 +208,7 @@ export async function POST(request: Request) {
         zona: zona || 'CABA',
         zonasHabilitadas: zonasHabilitadas || [],
         unidadesNegocio: unidadesNegocio || ['Gerencia Comercial'],
+        tenantId: targetTenantId || null,
         isNivelTodo: (session.alias === 'admin' || session.isNivelTodo) && isNivelTodo === true,
         passwordUpdatedAt: new Date()
       }

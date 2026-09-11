@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import EmpresasClient from './EmpresasClient'
 import { getSessionUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 
 import { areZonasEqual } from '@/lib/zonaUtils'
 
@@ -22,6 +23,25 @@ export default async function EmpresasPage({
   const { zonaName } = await params
   const { vendedor: queryVendedor } = await searchParams
   const decodedZona = decodeURIComponent(zonaName)
+
+  const headersList = await headers()
+  const tenantSlug = headersList.get('x-tenant-slug')
+
+  let currentTenant = null
+  if (tenantSlug) {
+    currentTenant = await prisma.tenant.findUnique({
+      where: { slug: tenantSlug }
+    })
+  } else if (user.tenantId) {
+    currentTenant = await prisma.tenant.findUnique({
+      where: { id: user.tenantId }
+    })
+  } else {
+    currentTenant = await prisma.tenant.findFirst({
+      where: { slug: 'golocinas' }
+    })
+  }
+  const currentTenantId = currentTenant?.id || 1
 
   // Verify access permissions to this zone
   if (user.nivel === 3 && !areZonasEqual(user.zona, decodedZona)) {
@@ -46,6 +66,7 @@ export default async function EmpresasPage({
   const hasVendedorFilter = Boolean(userAlias)
   
   const whereFilter: any = {
+    tenantId: currentTenantId,
     zona: { equals: decodedZona, mode: 'insensitive' },
     ...(hasVendedorFilter ? { vendedorAsignado: { equals: userAlias, mode: 'insensitive' } } : {}),
     ...(isVendedor ? { ocultarVendedor: false } : {})

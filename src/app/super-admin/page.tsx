@@ -323,7 +323,14 @@ export default function SuperAdminDashboardPage() {
                         </span>
                       </td>
                       <td className="py-3 px-3 font-mono text-zinc-400">
-                        /{t.slug}
+                        <Link 
+                          href={`/${t.slug}`} 
+                          className="hover:text-amber-400 underline underline-offset-4 inline-flex items-center gap-1"
+                          title={`Ir a ${t.nombre}`}
+                        >
+                          <span>/{t.slug}</span>
+                          <ExternalLink size={10} />
+                        </Link>
                       </td>
                       <td className="py-3 px-3 text-center font-mono font-bold text-white">
                         {t._count.empresas}

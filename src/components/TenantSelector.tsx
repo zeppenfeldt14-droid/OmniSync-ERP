@@ -117,6 +117,14 @@ export default function TenantSelector() {
                     onClick={() => {
                       switchTenantById(t.id)
                       setIsOpen(false)
+                      if (typeof window !== 'undefined') {
+                        document.cookie = `omnisync_active_tenant_slug=${t.slug}; path=/; max-age=2592000`
+                        const p = window.location.pathname
+                        if (!p.startsWith('/super-admin') && !p.startsWith('/login')) {
+                          const sub = p.replace(/^\/(golocinas|vinnaty)/, '') || '/'
+                          window.location.href = `/${t.slug}${sub === '/' ? '' : sub}`
+                        }
+                      }
                     }}
                     style={{
                       width: '100%',

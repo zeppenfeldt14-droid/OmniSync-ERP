@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import EmpresasGlobalClient from './EmpresasGlobalClient'
 import { getSessionUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +17,29 @@ export default async function EmpresasGlobalPage() {
     redirect('/')
   }
 
+  const headersList = await headers()
+  const tenantSlug = headersList.get('x-tenant-slug')
+
+  let currentTenant = null
+  if (tenantSlug) {
+    currentTenant = await prisma.tenant.findUnique({
+      where: { slug: tenantSlug }
+    })
+  } else if (user.tenantId) {
+    currentTenant = await prisma.tenant.findUnique({
+      where: { id: user.tenantId }
+    })
+  } else {
+    currentTenant = await prisma.tenant.findFirst({
+      where: { slug: 'golocinas' }
+    })
+  }
+  const currentTenantId = currentTenant?.id || 1
+
   const empresasAll = await prisma.empresa.findMany({
+    where: {
+      tenantId: currentTenantId
+    },
     orderBy: { nombre: 'asc' },
     select: {
       id: true,
@@ -43,6 +66,7 @@ export default async function EmpresasGlobalPage() {
 
   // Obtener zonas con su tenantId
   const dbZonas = await prisma.zona.findMany({
+    where: { tenantId: currentTenantId },
     select: { id: true, nombre: true, tenantId: true },
     orderBy: { nombre: 'asc' }
   })

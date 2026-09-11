@@ -37,12 +37,12 @@ const TenantContext = createContext<TenantContextType | undefined>(undefined)
 const DEFAULT_TENANTS: TenantData[] = [
   {
     id: 1,
-    slug: 'equipos-terreno',
-    nombre: 'Equipos y Logística en Terreno',
-    descripcion: 'Venta presencial de equipos, ruteo geolocalizado y distribución mayorista.',
-    shortCode: 'EQP',
-    colorPrimario: '#3b82f6',
-    colorSecundario: '#1e293b',
+    slug: 'golocinas',
+    nombre: 'Golocinas',
+    descripcion: 'Distribución mayorista, consumo masivo, ruteo geolocalizado y venta en terreno.',
+    shortCode: 'GLC',
+    colorPrimario: '#2563eb',
+    colorSecundario: '#1d4ed8',
     logoUrl: null,
     tipoModelo: 'FISICO_TERRENO',
     moneda: 'ARS',
@@ -54,12 +54,12 @@ const DEFAULT_TENANTS: TenantData[] = [
   },
   {
     id: 2,
-    slug: 'publicidad-marketing',
-    nombre: 'Agencia de Publicidad & Marketing Digital',
-    descripcion: 'Servicios web, pauta publicitaria, marketing digital y desarrollos a medida.',
-    shortCode: 'PUB',
+    slug: 'vinnaty',
+    nombre: 'Vinnaty - Agencia de Publicidad & Marketing',
+    descripcion: 'Servicios de marketing, diseño web, desarrollo de software, KPIs y pauta digital.',
+    shortCode: 'VIN',
     colorPrimario: '#7c3aed',
-    colorSecundario: '#4c1d95',
+    colorSecundario: '#6d28d9',
     logoUrl: null,
     tipoModelo: 'SERVICIOS_DIGITALES',
     moneda: 'USD',
@@ -88,10 +88,24 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         if (Array.isArray(data) && data.length > 0) {
           setTenants(data)
           
-          // Keep current active or fallback to saved / first
-          const savedSlug = typeof window !== 'undefined' ? localStorage.getItem('omnisync_active_tenant_slug') : null
-          const found = data.find((t: TenantData) => t.slug === savedSlug) || data[0]
-          if (found) setActiveTenantState(found)
+          // Determine initial active tenant by pathname, localStorage, or first
+          let targetSlug: string | null = null
+          if (typeof window !== 'undefined') {
+            const p = window.location.pathname
+            if (p.startsWith('/vinnaty')) targetSlug = 'vinnaty'
+            else if (p.startsWith('/golocinas')) targetSlug = 'golocinas'
+            else targetSlug = localStorage.getItem('omnisync_active_tenant_slug')
+          }
+          
+          const found = data.find((t: TenantData) => t.slug === targetSlug) || data[0]
+          if (found) {
+            setActiveTenantState(found)
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('omnisync_active_tenant_slug', found.slug)
+              localStorage.setItem('omnisync_active_tenant_id', String(found.id))
+              document.cookie = `omnisync_active_tenant_slug=${found.slug}; path=/; max-age=2592000`
+            }
+          }
         }
       }
     } catch (e) {
@@ -110,6 +124,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('omnisync_active_tenant_slug', tenant.slug)
       localStorage.setItem('omnisync_active_tenant_id', String(tenant.id))
+      document.cookie = `omnisync_active_tenant_slug=${tenant.slug}; path=/; max-age=2592000`
       window.dispatchEvent(new CustomEvent('omnisync_tenant_changed', { detail: tenant }))
     }
   }

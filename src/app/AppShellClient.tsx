@@ -23,6 +23,7 @@ interface UserSession {
   modulos: Record<string, boolean>
   zona: string | null
   zonasHabilitadas: any // Json array of enabled zones
+  tenantId?: number | null
 }
 
 interface Props {
@@ -553,18 +554,33 @@ export function AppShellClient({
               }} 
             />
             <div className="hidden sm:flex items-center gap-2">
-              <TenantSelector />
-              <CurrencyToggle />
-              {user.nivel === 1 && (
-                <Link
-                  href="/super-admin"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-black uppercase tracking-wider transition shadow-sm"
-                  title="Panel de Mando Super Admin"
-                >
-                  <ShieldCheck size={14} className="text-amber-400" />
-                  <span>Super Admin</span>
-                </Link>
+              {user.rol === 'SUPER_ADMIN' && (!user.tenantId || user.tenantId === null) ? (
+                <>
+                  <TenantSelector />
+                  <Link
+                    href="/super-admin"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-black uppercase tracking-wider transition shadow-sm"
+                    title="Panel de Mando Super Admin"
+                  >
+                    <ShieldCheck size={14} className="text-amber-400" />
+                    <span>Super Admin</span>
+                  </Link>
+                </>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-semibold text-slate-200">
+                  <div
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: activeTenant?.colorPrimario || '#3b82f6',
+                      boxShadow: `0 0 8px ${activeTenant?.colorPrimario || '#3b82f6'}`
+                    }}
+                  />
+                  <span>{activeTenant?.nombre || 'Unidad de Negocio'}</span>
+                </div>
               )}
+              <CurrencyToggle />
             </div>
           </div>
           <div className="flex items-center gap-3">

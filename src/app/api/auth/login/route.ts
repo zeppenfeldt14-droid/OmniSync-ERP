@@ -18,13 +18,23 @@ export async function POST(request: Request) {
     // Clean @ prefix if entered
     const cleanAlias = alias.replace(/^@/, '').trim()
 
-    // Find user
+    // Find user with tenant relation
     const usuario = await prisma.usuario.findFirst({
       where: {
         OR: [
           { alias: { equals: cleanAlias, mode: 'insensitive' } },
           { email: { equals: alias, mode: 'insensitive' } }
         ]
+      },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            slug: true,
+            nombre: true,
+            tipoModelo: true
+          }
+        }
       }
     })
 
@@ -45,7 +55,6 @@ export async function POST(request: Request) {
     }
 
     // Sign JWT Token
-    // Sign JWT Token
     const sessionUser = {
       id: usuario.id,
       alias: usuario.alias,
@@ -57,7 +66,8 @@ export async function POST(request: Request) {
       zona: usuario.zona,
       zonasHabilitadas: usuario.zonasHabilitadas,
       unidadesNegocio: (usuario.unidadesNegocio as string[]) || [],
-      isNivelTodo: usuario.isNivelTodo
+      isNivelTodo: usuario.isNivelTodo,
+      tenantId: usuario.tenantId
     }
     const token = signToken(sessionUser)
 
@@ -100,8 +110,36 @@ export async function POST(request: Request) {
       `Inicio de sesión exitoso - IP: ${ip}`
     )
 
+    // Determine dynamic landing redirect
+    let redirectUrl = '/'
+    if (usuario.alias === 'Elarez' || (usuario.nivel === 1 && !usuario.tenantId)) {
+      redirectUrl = '/super-admin'
+    } else if (usuario.tenant?.slug === 'vinnaty' || usuario.alias === 'vinnaty') {
+      redirectUrl = '/vinnaty'
+      cookieStore.set('omnisync_active_tenant_slug', 'vinnaty', {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: 'lax'
+      })
+    } else if (usuario.tenant?.slug === 'golocinas' || usuario.alias === 'admin') {
+      redirectUrl = '/golocinas'
+      cookieStore.set('omnisync_active_tenant_slug', 'golocinas', {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: 'lax'
+      })
+    } else if (usuario.tenant?.slug) {
+      redirectUrl = `/${usuario.tenant.slug}`
+      cookieStore.set('omnisync_active_tenant_slug', usuario.tenant.slug, {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: 'lax'
+      })
+    }
+
     return NextResponse.json({
       success: true,
+      redirectUrl,
       user: {
         id: usuario.id,
         nombre: usuario.nombre,
@@ -111,7 +149,9 @@ export async function POST(request: Request) {
         rol: usuario.rol,
         foto: usuario.foto,
         modulos: usuario.modulos,
-        mustChangePassword: usuario.mustChangePassword
+        mustChangePassword: usuario.mustChangePassword,
+        tenantId: usuario.tenantId,
+        tenant: usuario.tenant
       }
     })
   } catch (error: any) {

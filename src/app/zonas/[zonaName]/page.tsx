@@ -12,6 +12,7 @@ import { getPredictiveAlerts } from '@/lib/alertsEngine'
 import { AlertsDashboard } from '@/components/AlertsDashboard'
 import TareasPendientes from '@/components/TareasPendientes'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 
 import { areZonasEqual } from '@/lib/zonaUtils'
 
@@ -71,22 +72,44 @@ export default async function DashboardPage({ params, searchParams }: { params: 
     }
   }
 
+  const headersList = await headers()
+  const tenantSlug = headersList.get('x-tenant-slug')
+
+  let currentTenant = null
+  if (tenantSlug) {
+    currentTenant = await prisma.tenant.findUnique({
+      where: { slug: tenantSlug }
+    })
+  } else if (user.tenantId) {
+    currentTenant = await prisma.tenant.findUnique({
+      where: { id: user.tenantId }
+    })
+  } else {
+    currentTenant = await prisma.tenant.findFirst({
+      where: { slug: 'golocinas' }
+    })
+  }
+  const currentTenantId = currentTenant?.id || 1
+
   const isVendedor = user.nivel === 3
   const userAlias = isVendedor ? user.alias : vendedor
   const hasVendedorFilter = Boolean(userAlias)
 
   const whereEmpresa: any = {
+    tenantId: currentTenantId,
     zona: { equals: decodedZona, mode: 'insensitive' },
     ...(hasVendedorFilter ? { vendedorAsignado: { equals: userAlias, mode: 'insensitive' } } : {})
   }
   const whereAccion: any = {
     empresa: {
+      tenantId: currentTenantId,
       zona: { equals: decodedZona, mode: 'insensitive' },
       ...(hasVendedorFilter ? { vendedorAsignado: { equals: userAlias, mode: 'insensitive' } } : {})
     }
   }
   const whereVisita: any = {
     empresa: {
+      tenantId: currentTenantId,
       zona: { equals: decodedZona, mode: 'insensitive' },
       ...(hasVendedorFilter ? { vendedorAsignado: { equals: userAlias, mode: 'insensitive' } } : {})
     }

@@ -45,7 +45,7 @@ export default function LoginPage() {
         localStorage.setItem('user_status_limits', JSON.stringify(data.user.limitesEstado || {}))
         localStorage.setItem('staff_auth', 'true')
 
-        window.location.href = '/'
+        window.location.href = data.redirectUrl || '/'
       } else {
         setError('Error al procesar el inicio de sesión.')
         setIsLoading(false)

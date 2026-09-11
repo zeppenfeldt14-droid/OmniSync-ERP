@@ -22,8 +22,22 @@ export async function GET(request: Request) {
       
     const vendedorFiltro = isVendedor ? session.alias : queryVendedor
 
+    const tenantParam = searchParams.get('tenantId')
+    const tenantSlug = request.headers.get('x-tenant-slug')
+    
+    let targetTenantId = session.tenantId
+    if (!targetTenantId) {
+      if (tenantParam) {
+        targetTenantId = parseInt(tenantParam)
+      } else if (tenantSlug) {
+        const t = await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
+        if (t) targetTenantId = t.id
+      }
+    }
+
     const empresas = await prisma.empresa.findMany({
       where: {
+        ...(targetTenantId ? { tenantId: targetTenantId } : {}),
         ...(estado ? { estado } : {}),
         ...(zonaFiltro ? { zona: { equals: zonaFiltro, mode: 'insensitive' } } : {}),
         ...(q ? { nombre: { contains: q, mode: 'insensitive' } } : {}),
