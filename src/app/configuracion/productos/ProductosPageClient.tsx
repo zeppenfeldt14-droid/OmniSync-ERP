@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Package, Plus, Pencil, Trash2, Download, Search,
   Save, X, CheckCircle2, AlertCircle, RefreshCw,
-  Printer, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Percent, Link2, Check
+  Printer, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Percent, Link2, Check, FileSpreadsheet
 } from 'lucide-react'
+import BulkPriceSheetSyncModal from '@/components/precios/BulkPriceSheetSyncModal'
 
 interface Producto {
   id: number
@@ -72,6 +73,7 @@ export function ProductosPageClient({ userNivel }: Props) {
 
   // Tarifa / Aumento Masivo State
   const [showAumentoModal, setShowAumentoModal] = useState(false)
+  const [showSyncSheetModal, setShowSyncSheetModal] = useState(false)
   const [isNewList, setIsNewList] = useState(true)
   const [newListNombre, setNewListNombre] = useState('')
   const [newListVigencia, setNewListVigencia] = useState('')
@@ -466,6 +468,14 @@ export function ProductosPageClient({ userNivel }: Props) {
               {seeding ? 'Cargando...' : 'Cargar Catálogo'}
             </button>
           )}
+          <button
+            onClick={() => setShowSyncSheetModal(true)}
+            className="btn btn-secondary text-xs flex items-center gap-2 border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 font-bold"
+            title="Sincronizar precios desde enlace de Google Sheets"
+          >
+            <FileSpreadsheet size={15} />
+            <span>Sincronizar Google Sheet</span>
+          </button>
           {userNivel === 1 && (
             <>
               <button 
@@ -1088,6 +1098,17 @@ export function ProductosPageClient({ userNivel }: Props) {
           </div>
         </div>
       )}
+
+      {/* Google Sheets Bulk Price Sync Modal */}
+      <BulkPriceSheetSyncModal
+        isOpen={showSyncSheetModal}
+        onClose={() => setShowSyncSheetModal(false)}
+        onSuccess={() => {
+          setShowSyncSheetModal(false)
+          fetchProductos()
+        }}
+        currentListId={selectedListId}
+      />
     </div>
   )
 }

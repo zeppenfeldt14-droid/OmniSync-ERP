@@ -3,6 +3,7 @@ import './globals.css'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 import { AppShellClient } from './AppShellClient'
+import { TenantProvider } from '@/lib/tenantContext'
 import { headers } from 'next/headers'
 
 export const metadata: Metadata = {
@@ -63,9 +64,11 @@ export default async function RootLayout({
   return (
     <html lang="es">
       <body>
-        <AppShellClient logo={logo} user={user} zones={zones} vendedoresPorZona={vendedoresPorZona}>
-          {children}
-        </AppShellClient>
+        <TenantProvider>
+          <AppShellClient logo={logo} user={user} zones={zones} vendedoresPorZona={vendedoresPorZona}>
+            {children}
+          </AppShellClient>
+        </TenantProvider>
       </body>
     </html>
   )

@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Users, Map as MapIcon, FileText, Settings, LogOut, ShieldCheck, ChevronDown, ChevronRight, Plus, Globe, X, ShoppingCart, TrendingUp, Banknote, Package, Home, Menu, MessageSquare } from 'lucide-react'
+import { LayoutDashboard, Users, Map as MapIcon, FileText, Settings, LogOut, ShieldCheck, ChevronDown, ChevronRight, Plus, Globe, X, ShoppingCart, TrendingUp, Banknote, Package, Home, Menu, MessageSquare, Laptop, FileSpreadsheet, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { NotificationBell } from './mensajes/NotificationBell'
+import TenantSelector from '@/components/TenantSelector'
 
 interface UserSession {
   id: number
@@ -201,7 +202,7 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
           
           {/* LEVEL 3 (Vendedor): Show single zone directly */}
           {user.nivel === 3 ? (
-            userZones.map(zone => (
+            userZones.map((zone: string) => (
               <div key={zone} className="flex flex-col gap-1.5">
                 <div className="px-3 py-1 text-[10px] font-black uppercase text-primary tracking-widest border-b border-white/5 mb-1.5">
                   Zona {zone}
@@ -241,6 +242,10 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
                 <div className="px-3 py-1 text-[10px] font-black uppercase text-yellow-500/70 tracking-widest border-b border-white/5 mt-2 mb-1.5">
                   Comercial
                 </div>
+                <Link href="/crm-web" className={`nav-item ${isLinkActive('/crm-web') ? 'active' : ''}`}>
+                  <Laptop className="nav-icon text-emerald-400" />
+                  <span>CRM PyMEs & Web</span>
+                </Link>
                 {modules.pedidos !== false && (
                   <Link href="/pedidos" className={`nav-item ${isLinkActive('/pedidos') ? 'active' : ''}`}>
                     <ShoppingCart className="nav-icon" />
@@ -284,7 +289,7 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
 
               {isZonesExpanded && (
                 <div className="pl-4 mt-2 flex flex-col gap-2 border-l border-white/5 ml-3.5">
-                  {userZones.map(zone => {
+                  {userZones.map((zone: string) => {
                     const isZoneActive = expandedZone === zone
                     return (
                       <div key={zone} className="flex flex-col gap-1">
@@ -425,6 +430,10 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
               <div className="px-3 py-1 text-[10px] font-black uppercase text-yellow-500/70 tracking-widest border-b border-white/5 mt-3 mb-1.5">
                 Comercial
               </div>
+              <Link href="/crm-web" className={`nav-item ${isLinkActive('/crm-web') ? 'active' : ''}`}>
+                <Laptop className="nav-icon text-emerald-400" />
+                <span>CRM PyMEs & Web</span>
+              </Link>
               {(user.nivel === 1 || modules.pedidos) && (
                 <Link href="/pedidos" className={`nav-item ${isLinkActive('/pedidos') ? 'active' : ''}`}>
                   <ShoppingCart className="nav-icon" />
@@ -505,6 +514,9 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
                 filter: 'brightness(1.2)'
               }} 
             />
+            <div className="hidden sm:block">
+              <TenantSelector />
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <NotificationBell userAlias={user.alias} />

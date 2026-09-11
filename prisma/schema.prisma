@@ -7,8 +7,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Tenant {
+  id                 Int                @id @default(autoincrement())
+  slug               String             @unique
+  nombre             String
+  descripcion        String?
+  shortCode          String?
+  colorPrimario      String             @default("#3b82f6")
+  colorSecundario    String             @default("#1e293b")
+  logoUrl            String?
+  tipoModelo         String             @default("SERVICIOS") // "FISICO_TERRENO", "SERVICIOS_DIGITALES", "HIBRIDO"
+  moneda             String             @default("ARS")
+  sheetUrl           String?
+  sheetUltimaSync    DateTime?
+  configuracion      Json               @default("{}")
+  activo             Boolean            @default(true)
+  creadoEn           DateTime           @default(now())
+  actualizadoEn      DateTime           @updatedAt
+  empresas           Empresa[]
+  listasPrecio       ListaPrecio[]
+  productos          Producto[]
+  pedidos            Pedido[]
+  abonosRecurrentes  AbonoRecurrente[]
+}
+
 model Empresa {
   id                Int                @id @default(autoincrement())
+  tenantId          Int?
   zona              String?
   nombre            String
   cuit              String?
@@ -26,6 +51,12 @@ model Empresa {
   productosInteres  String?
   transporte        String?
   url               String?
+  sitioWebActual    String?
+  instagram         String?
+  facebook          String?
+  diagnosticoWeb    String?
+  potencialCierre   String?            @default("medio")
+  etapaEmbudo       String?            @default("prospeccion")
   googleMaps        String?
   notas             String?
   estado            String             @default("prospecto")
@@ -48,12 +79,33 @@ model Empresa {
   bancoInstitucion  String?
   bancoSucursal     String?
   telefono2         String?
+  tenant            Tenant?            @relation(fields: [tenantId], references: [id])
   acciones          Accion[]
   alertas           Alerta[]
   notasPlanificador NotaPlanificador[]
   pedidos           Pedido[]
   ticketsSoporte    TicketSoporte[]
   visitas           Visita[]
+  abonosRecurrentes AbonoRecurrente[]
+}
+
+model AbonoRecurrente {
+  id                      Int       @id @default(autoincrement())
+  empresaId               Int
+  tenantId                Int?
+  nombreServicio          String
+  montoMensual            Float
+  moneda                  String    @default("ARS")
+  diaCobro                Int       @default(10)
+  fechaInicio             DateTime  @default(now())
+  fechaProximoVencimiento DateTime?
+  estado                  String    @default("activo")
+  frecuencia              String    @default("mensual")
+  notas                   String?
+  creadoEn                DateTime  @default(now())
+  actualizadoEn           DateTime  @updatedAt
+  empresa                 Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  tenant                  Tenant?   @relation(fields: [tenantId], references: [id])
 }
 
 model SubZona {
@@ -176,18 +228,28 @@ model Zona {
 }
 
 model Producto {
-  id                Int                @id @default(autoincrement())
-  codigoInterno     String             @unique
-  nombre            String
-  linea             String?
-  precioPaquete     Float
-  paqPorCaja        Int
-  precioCaja        Float
-  activo            Boolean            @default(true)
-  creadoEn          DateTime           @default(now())
-  actualizadoEn     DateTime           @updatedAt
-  detallesPedido    DetallePedido[]
-  detallesPromocion DetallePromocion[]
+  id                 Int                @id @default(autoincrement())
+  codigoInterno      String             @unique
+  nombre             String
+  linea              String?
+  tipo               String             @default("PRODUCTO") // "PRODUCTO", "SERVICIO", "ABONO_MENSUAL"
+  descripcion        String?
+  precioPaquete      Float              @default(0)
+  paqPorCaja         Int                @default(1)
+  precioCaja         Float              @default(0)
+  costoBase          Float              @default(0)
+  precioUnitario     Float              @default(0)
+  moneda             String             @default("ARS")
+  margenPorcentaje   Float              @default(0)
+  comisionPorcentaje Float              @default(0)
+  sku                String?
+  tenantId           Int?
+  activo             Boolean            @default(true)
+  creadoEn           DateTime           @default(now())
+  actualizadoEn      DateTime           @updatedAt
+  tenant             Tenant?            @relation(fields: [tenantId], references: [id])
+  detallesPedido     DetallePedido[]
+  detallesPromocion  DetallePromocion[]
 }
 
 model Promocion {
@@ -247,6 +309,8 @@ model Pedido {
   fechaPagoA           DateTime?
   metodoPagoA          String?
   metodoPagoB          String?
+  tenantId             Int?
+  tenant               Tenant?            @relation(fields: [tenantId], references: [id])
   cobranzas            Cobranza[]
   detalles             DetallePedido[]
   facturas             Factura[]
@@ -334,17 +398,21 @@ model Pago {
 }
 
 model ListaPrecio {
-  id                  Int              @id @default(autoincrement())
-  nombre              String
-  vigenteDesde        DateTime
-  activa              Boolean          @default(true)
-  creadoEn            DateTime         @default(now())
-  minimoCajas         Int              @default(300)
-  limiteListaA        Int              @default(60)
-  usuariosHabilitados Json             @default("[]")
-  unidadNegocio       String           @default("Gerencia Comercial")
-  subUnidadNegocio    String           @default("Comercial")
-  precios             PrecioProducto[]
+  id                   Int              @id @default(autoincrement())
+  tenantId             Int?
+  nombre               String
+  vigenteDesde         DateTime
+  activa               Boolean          @default(true)
+  creadoEn             DateTime         @default(now())
+  minimoCajas          Int              @default(300)
+  limiteListaA         Int              @default(60)
+  usuariosHabilitados  Json             @default("[]")
+  unidadNegocio        String           @default("Gerencia Comercial")
+  subUnidadNegocio     String           @default("Comercial")
+  sheetUrl             String?
+  ultimaSincronizacion DateTime?
+  tenant               Tenant?          @relation(fields: [tenantId], references: [id])
+  precios              PrecioProducto[]
 }
 
 model PrecioProducto {
