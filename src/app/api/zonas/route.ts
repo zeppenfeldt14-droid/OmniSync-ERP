@@ -2,12 +2,23 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     const session = await getSessionUser()
     if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
 
+    const { searchParams } = new URL(request.url)
+    const tenantIdParam = searchParams.get('tenantId')
+
+    const where: any = {}
+    if (tenantIdParam) {
+      where.tenantId = parseInt(tenantIdParam)
+    }
+
     const zonas = await prisma.zona.findMany({
+      where: Object.keys(where).length > 0 ? where : undefined,
       orderBy: { nombre: 'asc' }
     })
 
@@ -26,25 +37,32 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { nombre } = body
+    const { nombre, tenantId } = body
 
     if (!nombre || !nombre.trim()) {
       return NextResponse.json({ error: 'Nombre es requerido.' }, { status: 400 })
     }
 
-    const normalizedNombre = nombre.trim().toUpperCase()
+    const normalizedNombre = nombre.trim()
+    const targetTenantId = tenantId ? parseInt(String(tenantId)) : (session.tenantId || null)
 
-    // Check if duplicate
-    const exists = await prisma.zona.findUnique({
-      where: { nombre: normalizedNombre }
+    // Check if duplicate in this tenant
+    const exists = await prisma.zona.findFirst({
+      where: { 
+        tenantId: targetTenantId,
+        nombre: normalizedNombre 
+      }
     })
 
     if (exists) {
-      return NextResponse.json({ error: 'Esta zona ya existe.' }, { status: 400 })
+      return NextResponse.json({ error: 'Esta zona ya existe para este inquilino.' }, { status: 400 })
     }
 
     const zona = await prisma.zona.create({
-      data: { nombre: normalizedNombre }
+      data: { 
+        nombre: normalizedNombre,
+        tenantId: targetTenantId
+      }
     })
 
     return NextResponse.json({ success: true, zona })
@@ -68,9 +86,9 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'ID y Nombre son requeridos.' }, { status: 400 })
     }
 
-    const normalizedNombre = nombre.trim().toUpperCase()
+    const normalizedNombre = nombre.trim()
 
-    // Find original zone name
+    // Find original zone
     const existing = await prisma.zona.findUnique({
       where: { id }
     })
@@ -79,16 +97,17 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'No se encontró la zona.' }, { status: 404 })
     }
 
-    // Check if new name already exists elsewhere
+    // Check if new name already exists elsewhere within the same tenant
     const duplicate = await prisma.zona.findFirst({
       where: {
+        tenantId: existing.tenantId,
         nombre: normalizedNombre,
         id: { not: id }
       }
     })
 
     if (duplicate) {
-      return NextResponse.json({ error: 'Ya existe otra zona con ese nombre.' }, { status: 400 })
+      return NextResponse.json({ error: 'Ya existe otra zona con ese nombre en este inquilino.' }, { status: 400 })
     }
 
     const oldName = existing.nombre
@@ -101,7 +120,10 @@ export async function PUT(request: Request) {
 
     // Cascade update the zone field of all companies assigned to the old zone name
     await prisma.empresa.updateMany({
-      where: { zona: oldName },
+      where: { 
+        zona: oldName,
+        tenantId: existing.tenantId || undefined
+      },
       data: { zona: normalizedNombre }
     })
 
@@ -147,7 +169,10 @@ export async function DELETE(request: Request) {
 
     // Validate if any companies are currently assigned to this zone
     const hasCompanies = await prisma.empresa.findFirst({
-      where: { zona: existing.nombre }
+      where: { 
+        zona: existing.nombre,
+        tenantId: existing.tenantId || undefined
+      }
     })
 
     if (hasCompanies) {

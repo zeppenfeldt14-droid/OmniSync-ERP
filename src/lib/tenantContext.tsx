@@ -1,6 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import { getTenantTerminology, TenantTerminology, LOGISTICA_TERMINOLOGY, AGENCIA_TERMINOLOGY } from './terminology'
 
 export interface TenantData {
   id: number
@@ -16,12 +17,14 @@ export interface TenantData {
   sheetUrl: string | null
   sheetUltimaSync: string | null
   configuracion: Record<string, unknown>
+  terminologia?: Record<string, string> | null
   activo: boolean
 }
 
 interface TenantContextType {
   activeTenant: TenantData | null
   tenants: TenantData[]
+  terminology: TenantTerminology
   isLoading: boolean
   setActiveTenant: (tenant: TenantData) => void
   switchTenantById: (id: number) => void
@@ -45,22 +48,24 @@ const DEFAULT_TENANTS: TenantData[] = [
     moneda: 'ARS',
     sheetUrl: null,
     sheetUltimaSync: null,
+    terminologia: LOGISTICA_TERMINOLOGY as any,
     configuracion: { permiteVisitas: true, permiteGeolocalizacion: true, tieneLogistica: true },
     activo: true,
   },
   {
     id: 2,
-    slug: 'web-pymes',
-    nombre: 'Páginas Web & Soluciones Digitales PyMEs',
-    descripcion: 'Desarrollo web, e-commerce, software a medida y abonos mensuales de hosting.',
-    shortCode: 'WEB',
-    colorPrimario: '#10b981',
-    colorSecundario: '#064e3b',
+    slug: 'publicidad-marketing',
+    nombre: 'Agencia de Publicidad & Marketing Digital',
+    descripcion: 'Servicios web, pauta publicitaria, marketing digital y desarrollos a medida.',
+    shortCode: 'PUB',
+    colorPrimario: '#7c3aed',
+    colorSecundario: '#4c1d95',
     logoUrl: null,
     tipoModelo: 'SERVICIOS_DIGITALES',
-    moneda: 'ARS',
+    moneda: 'USD',
     sheetUrl: null,
     sheetUltimaSync: null,
+    terminologia: AGENCIA_TERMINOLOGY as any,
     configuracion: { permiteAbonos: true, permiteCotizadorWeb: true, diagnosticoPymes: true },
     activo: true,
   }
@@ -70,6 +75,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenants, setTenants] = useState<TenantData[]>(DEFAULT_TENANTS)
   const [activeTenant, setActiveTenantState] = useState<TenantData>(DEFAULT_TENANTS[0])
   const [isLoading, setIsLoading] = useState<boolean>(true)
+
+  const terminology = useMemo(() => {
+    return getTenantTerminology(activeTenant)
+  }, [activeTenant])
 
   const refreshTenants = useCallback(async () => {
     try {
@@ -120,6 +129,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       value={{
         activeTenant,
         tenants,
+        terminology,
         isLoading,
         setActiveTenant,
         switchTenantById,

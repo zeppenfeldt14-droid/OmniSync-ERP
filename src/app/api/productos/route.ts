@@ -2,24 +2,36 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 
-// GET: Listar productos activos (para el formulario de pedido)
-export async function GET() {
+export const dynamic = 'force-dynamic'
+
+// GET: Listar productos activos (filtrados opcionalmente por inquilino)
+export async function GET(request: Request) {
   try {
     const session = await getSessionUser()
     if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
+
+    const { searchParams } = new URL(request.url)
+    const tenantIdParam = searchParams.get('tenantId')
+    const targetTenantId = tenantIdParam ? parseInt(tenantIdParam) : (session.tenantId || null)
+
+    const where: any = { activo: true }
+    if (targetTenantId) {
+      where.tenantId = targetTenantId
+    }
 
     // Find active price list (vigenteDesde <= hoy)
     const activeList = await prisma.listaPrecio.findFirst({
       where: {
         activa: true,
-        vigenteDesde: { lte: new Date() }
+        vigenteDesde: { lte: new Date() },
+        tenantId: targetTenantId || undefined
       },
       orderBy: { vigenteDesde: 'desc' },
       include: { precios: true }
     })
 
     const productos = await prisma.producto.findMany({
-      where: { activo: true },
+      where,
       orderBy: [{ linea: 'asc' }, { nombre: 'asc' }],
     })
 
@@ -51,14 +63,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Acceso denegado.' }, { status: 403 })
 
     const body = await request.json()
-    const { codigoInterno, nombre, linea, precioPaquete, paqPorCaja, precioCaja } = body
+    const { codigoInterno, nombre, linea, precioPaquete, paqPorCaja, precioCaja, tipo, tenantId } = body
 
-    if (!codigoInterno || !nombre || !precioCaja || !paqPorCaja) {
+    if (!codigoInterno || !nombre) {
       return NextResponse.json({ error: 'Faltan campos requeridos.' }, { status: 400 })
     }
 
+    const targetTenantId = tenantId ? parseInt(String(tenantId)) : (session.tenantId || null)
+
     const producto = await prisma.producto.create({
-      data: { codigoInterno, nombre, linea, precioPaquete, paqPorCaja, precioCaja },
+      data: { 
+        codigoInterno, 
+        nombre, 
+        linea: linea || null, 
+        tipo: tipo || 'PRODUCTO',
+        precioPaquete: Number(precioPaquete || 0), 
+        paqPorCaja: Number(paqPorCaja || 1), 
+        precioCaja: Number(precioCaja || precioPaquete || 0),
+        precioUnitario: Number(precioPaquete || precioCaja || 0),
+        tenantId: targetTenantId
+      },
     })
 
     return NextResponse.json({ success: true, producto })

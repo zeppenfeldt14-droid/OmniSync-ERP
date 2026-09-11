@@ -14,6 +14,7 @@ import { formatDate } from '@/lib/date'
 import SharedPeriodFilter from '@/components/SharedPeriodFilter'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import { useTenant } from '@/lib/tenantContext'
 
 interface Props {
   userNivel: number
@@ -105,6 +106,7 @@ export function PedidosPageClient({ userNivel, userAlias, userZona, availableZon
   }
 
   const router = useRouter()
+  const { terminology } = useTenant()
   const [selectedZone, setSelectedZone] = useState<string>(
     userNivel === 3 ? (userZona || '') : 'todas'
   )
@@ -278,12 +280,12 @@ export function PedidosPageClient({ userNivel, userAlias, userZona, availableZon
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <ShoppingCart className="text-primary" size={26} />
-            Pedidos
+            {terminology.pedidos}
           </h1>
           <p className="text-secondary text-sm mt-1">
             {userNivel === 3
-              ? `Zona ${userZona} · Mis pedidos`
-              : 'Gestión centralizada de pedidos por zona'}
+              ? `Zona ${userZona} · Mis ${terminology.pedidos.toLowerCase()}`
+              : `Gestión centralizada de ${terminology.pedidos.toLowerCase()} por zona`}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -298,7 +300,7 @@ export function PedidosPageClient({ userNivel, userAlias, userZona, availableZon
             className="btn btn-primary flex items-center gap-2 shadow-lg shadow-primary/20 font-bold"
           >
             <Plus size={16} />
-            Nuevo Pedido
+            {terminology.nuevoPedido}
           </button>
         </div>
       </div>

@@ -43,7 +43,6 @@ export default function ConfigZoneMap({ initialGeojson, color, onChange }: Confi
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         subdomains: 'abc',
         maxZoom: 19,
-        className: 'dark-map-tiles'
       }).addTo(map)
 
       map.pm.addControls({

@@ -256,7 +256,6 @@ export function ZoneHeatMap({ visitas, ventas, totalEmpresas, empresasSinCoorden
         subdomains: 'abc',
         maxZoom: 19,
         minZoom: 6,
-        className: 'dark-map-tiles'
       }).addTo(map)
 
       map.zoomControl.setPosition('bottomright')

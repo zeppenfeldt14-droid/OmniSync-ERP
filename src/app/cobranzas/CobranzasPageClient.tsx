@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { PedidoDetalleModal } from '@/components/PedidoDetalleModal'
 import { formatDate } from '@/lib/date'
+import { useTenant } from '@/lib/tenantContext'
 
 interface Props {
   userNivel: number
@@ -69,6 +70,7 @@ const METODOS_PAGO = [
 ]
 
 export function CobranzasPageClient({ userNivel, userAlias, userZona, availableZones }: Props) {
+  const { terminology } = useTenant()
   const [selectedZone, setSelectedZone] = useState<string>(userNivel === 3 ? (userZona || '') : 'todas')
   const [selectedEstado, setSelectedEstado] = useState('todos')
   const [cobranzas, setCobranzas] = useState<Cobranza[]>([])
@@ -418,12 +420,12 @@ export function CobranzasPageClient({ userNivel, userAlias, userZona, availableZ
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <Banknote className="text-yellow-400" size={26} />
-            Cobranzas
+            {terminology.cobranzas}
           </h1>
           <p className="text-secondary text-sm mt-1">
             {userNivel === 3
-              ? `Zona ${userZona} · Cuentas por cobrar`
-              : 'Cartera de cobranzas consolidada por zona'}
+              ? `Zona ${userZona} · Mis cuentas y ${terminology.cobranzas.toLowerCase()}`
+              : `Cartera de ${terminology.cobranzas.toLowerCase()} consolidada por zona`}
           </p>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { TrendingUp, Globe, BarChart3, FileText, DollarSign, RefreshCw, Eye, Tru
 import { PedidoDetalleModal } from '@/components/PedidoDetalleModal'
 import SharedPeriodFilter from '@/components/SharedPeriodFilter'
 import { formatDate } from '@/lib/date'
+import { useTenant } from '@/lib/tenantContext'
 
 interface Props {
   userNivel: number
@@ -46,6 +47,7 @@ const ESTADO_FAC: Record<string, string> = {
 }
 
 export function VentasPageClient({ userNivel, userAlias, userZona, availableZones }: Props) {
+  const { terminology } = useTenant()
   const [selectedZone, setSelectedZone] = useState<string>(userNivel === 3 ? (userZona || '') : 'todas')
   const [selectedPeriod, setSelectedPeriod] = useState<string>('mes')
   const [facturas, setFacturas] = useState<Factura[]>([])
@@ -163,12 +165,12 @@ export function VentasPageClient({ userNivel, userAlias, userZona, availableZone
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <TrendingUp className="text-green-400" size={26} />
-            Ventas
+            {terminology.ventas}
           </h1>
           <p className="text-secondary text-sm mt-1">
             {userNivel === 3
-              ? `Zona ${userZona} · Mis ventas y facturación`
-              : 'Historial consolidado de ventas por zona'}
+              ? `Zona ${userZona} · Mis ${terminology.ventas.toLowerCase()}`
+              : `Historial consolidado de ${terminology.ventas.toLowerCase()} por zona`}
           </p>
         </div>
 

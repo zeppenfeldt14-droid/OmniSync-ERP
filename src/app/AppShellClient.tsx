@@ -1,11 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Users, Map as MapIcon, FileText, Settings, LogOut, ShieldCheck, ChevronDown, ChevronRight, Plus, Globe, X, ShoppingCart, TrendingUp, Banknote, Package, Home, Menu, MessageSquare, Laptop, FileSpreadsheet, Sparkles } from 'lucide-react'
+import { 
+  LayoutDashboard, Users, Map as MapIcon, FileText, Settings, LogOut, ShieldCheck, 
+  ChevronDown, ChevronRight, Plus, Globe, X, ShoppingCart, TrendingUp, Banknote, 
+  Package, Home, Menu, MessageSquare, Laptop, Building2
+} from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { NotificationBell } from './mensajes/NotificationBell'
 import TenantSelector from '@/components/TenantSelector'
+import CurrencyToggle from '@/components/CurrencyToggle'
+import { useTenant } from '@/lib/tenantContext'
 
 interface UserSession {
   id: number
@@ -24,11 +30,20 @@ interface Props {
   logo: string | null
   user: UserSession
   zones?: string[]
-  vendedoresPorZona?: Record<string, {id: number, nombre: string, alias: string, zona: string|null}[]>
+  allZones?: Array<{ id: number; nombre: string; tenantId: number | null }>
+  vendedoresPorZona?: Record<string, { id: number; nombre: string; alias: string; zona: string | null }[]>
 }
 
-export function AppShellClient({ children, logo, user, zones = [], vendedoresPorZona = {} }: Props) {
+export function AppShellClient({ 
+  children, 
+  logo, 
+  user, 
+  zones = [], 
+  allZones = [], 
+  vendedoresPorZona = {} 
+}: Props) {
   const pathname = usePathname()
+  const { activeTenant, terminology } = useTenant()
   const [modules, setModules] = useState<Record<string, boolean>>(user.modulos || {})
   const [userName, setUserName] = useState(user.nombre)
   const [userRol, setUserRol] = useState(user.rol)
@@ -44,15 +59,22 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
   const [newZoneName, setNewZoneName] = useState('')
   const [isSubmittingZone, setIsSubmittingZone] = useState(false)
 
-  // Get allowed zones list based on user role
-  const allowedZones = typeof window !== 'undefined' ? [] : [] // placeholder for compile
-  
   const [userZones, setUserZones] = useState<string[]>([])
 
   useEffect(() => {
-    // Determine allowed zones
+    // Determine allowed zones based on activeTenant and user level
+    let tenantZones = zones
+    if (activeTenant && allZones && allZones.length > 0) {
+      const matched = allZones
+        .filter(z => z.tenantId === activeTenant.id)
+        .map(z => z.nombre)
+      if (matched.length > 0) {
+        tenantZones = matched
+      }
+    }
+
     if (user.nivel === 1) {
-      setUserZones(zones)
+      setUserZones(tenantZones)
     } else if (user.nivel === 2) {
       let enabled: string[] = []
       try {
@@ -62,11 +84,14 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
             : JSON.parse(JSON.stringify(user.zonasHabilitadas))
         }
       } catch (e) {}
-      setUserZones(zones.filter(z => enabled.includes(z)))
+      setUserZones(tenantZones.filter(z => enabled.includes(z)))
     } else {
-      setUserZones([user.zona || 'CABA'])
+      const targetZone = tenantZones.includes(user.zona || '') 
+        ? user.zona! 
+        : (tenantZones[0] || user.zona || 'Zona 1')
+      setUserZones([targetZone])
     }
-  }, [zones, user])
+  }, [zones, allZones, user, activeTenant])
 
   // Sync with localStorage if available
   useEffect(() => {
@@ -91,7 +116,6 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
       const activeZone = decodeURIComponent(match[1])
       setExpandedZone(activeZone)
     }
-    // Also try to read ?vendedor= from URL to auto-expand
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       const v = params.get('vendedor')
@@ -115,7 +139,7 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
     }
   }
 
-  // Create new zone API call
+  // Create new zone API call (linked to active tenant)
   const handleCreateZone = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newZoneName.trim()) return
@@ -125,14 +149,17 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
       const res = await fetch('/api/zonas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: newZoneName })
+        body: JSON.stringify({ 
+          nombre: newZoneName,
+          tenantId: activeTenant?.id || null 
+        })
       })
 
       if (res.ok) {
         alert('Nueva zona creada con éxito.')
         setShowCreateZone(false)
         setNewZoneName('')
-        window.location.reload() // Reload to fetch fresh layout zones
+        window.location.reload()
       } else {
         const err = await res.json()
         alert(`Error: ${err.error || 'No se pudo crear la zona.'}`)
@@ -192,43 +219,45 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
             <span className="font-bold text-white uppercase tracking-wider text-xs">Mensajes</span>
           </Link>
 
-          {/* Empresas Global (Niveles 1 y 2) */}
+          {/* Empresas / Clientes Global (Niveles 1 y 2) */}
           {user.nivel < 3 && (
             <Link href="/empresas" className={`nav-item ${isLinkActive('/empresas') ? 'active' : ''}`}>
               <Users className="nav-icon text-primary" />
-              <span className="font-bold text-white uppercase tracking-wider text-xs">Directorio Global</span>
+              <span className="font-bold text-white uppercase tracking-wider text-xs truncate">
+                {terminology.empresas}
+              </span>
             </Link>
           )}
           
-          {/* LEVEL 3 (Vendedor): Show single zone directly */}
+          {/* LEVEL 3 (Vendedor / Ejecutivo): Show single zone directly */}
           {user.nivel === 3 ? (
             userZones.map((zone: string) => (
               <div key={zone} className="flex flex-col gap-1.5">
                 <div className="px-3 py-1 text-[10px] font-black uppercase text-primary tracking-widest border-b border-white/5 mb-1.5">
-                  Zona {zone}
+                  {zone}
                 </div>
                 {modules.ventas !== false && (
                   <Link href={`/zonas/${zone}/ventas`} className={`nav-item ${isLinkActive(`/zonas/${zone}/ventas`) ? 'active' : ''}`}>
                     <TrendingUp className="nav-icon" />
-                    <span>Gestión de Ventas</span>
+                    <span>{terminology.ventas}</span>
                   </Link>
                 )}
                 {modules.visitas !== false && (
                   <Link href={`/zonas/${zone}`} className={`nav-item ${pathname === `/zonas/${zone}` ? 'active' : ''}`}>
                     <LayoutDashboard className="nav-icon" />
-                    <span>Gestión de Visitas</span>
+                    <span>{terminology.visitas}</span>
                   </Link>
                 )}
                 {modules.empresas !== false && (
                   <Link href={`/zonas/${zone}/empresas`} className={`nav-item ${isLinkActive(`/zonas/${zone}/empresas`) ? 'active' : ''}`}>
                     <Users className="nav-icon" />
-                    <span>Empresas</span>
+                    <span>{terminology.empresas}</span>
                   </Link>
                 )}
                 {modules.planificador !== false && (
                   <Link href={`/zonas/${zone}/planificador`} className={`nav-item ${isLinkActive(`/zonas/${zone}/planificador`) ? 'active' : ''}`}>
                     <MapIcon className="nav-icon" />
-                    <span>Planificador Diario</span>
+                    <span>{terminology.planificador}</span>
                   </Link>
                 )}
                 {modules.reportes !== false && (
@@ -240,7 +269,7 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
 
                 {/* Módulos Comerciales - Level 3 */}
                 <div className="px-3 py-1 text-[10px] font-black uppercase text-yellow-500/70 tracking-widest border-b border-white/5 mt-2 mb-1.5">
-                  Comercial
+                  Operaciones Comerciales
                 </div>
                 <Link href="/crm-web" className={`nav-item ${isLinkActive('/crm-web') ? 'active' : ''}`}>
                   <Laptop className="nav-icon text-emerald-400" />
@@ -249,19 +278,19 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
                 {modules.pedidos !== false && (
                   <Link href="/pedidos" className={`nav-item ${isLinkActive('/pedidos') ? 'active' : ''}`}>
                     <ShoppingCart className="nav-icon" />
-                    <span>Pedidos</span>
+                    <span>{terminology.pedidos}</span>
                   </Link>
                 )}
                 {modules.ventas !== false && (
                   <Link href="/ventas" className={`nav-item ${isLinkActive('/ventas') ? 'active' : ''}`}>
                     <TrendingUp className="nav-icon" />
-                    <span>Ventas</span>
+                    <span>{terminology.ventas}</span>
                   </Link>
                 )}
                 {modules.cobranzas !== false && (
                   <Link href="/cobranzas" className={`nav-item ${isLinkActive('/cobranzas') ? 'active' : ''}`}>
                     <Banknote className="nav-icon" />
-                    <span>Cobranzas</span>
+                    <span>{terminology.cobranzas}</span>
                   </Link>
                 )}
                 {modules.pedidos !== false && (
@@ -282,7 +311,9 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
               >
                 <div className="flex items-center gap-3">
                   <Globe className="nav-icon text-primary" />
-                  <span className="font-bold text-white uppercase tracking-wider text-xs">Zonas</span>
+                  <span className="font-bold text-white uppercase tracking-wider text-xs">
+                    {terminology.zonas}
+                  </span>
                 </div>
                 {isZonesExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </button>
@@ -319,31 +350,31 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
                               {expandedVendedor === 'ALL' && (
                                 <div className="pl-3 mt-1 flex flex-col gap-1.5 border-l border-white/5 ml-1.5">
                                   {modules.ventas !== false && (
-                                    <Link href={`/zonas/${zone}/ventas`} className={`nav-item !py-1.5 !px-2.5 !text-[11px] ${isLinkActive(`/zonas/${zone}/ventas`, true) && !pathname.includes('vendedor') ? 'active' : ''}`}>
+                                    <Link href={`/zonas/${zone}/ventas`} className={`nav-item !py-1.5 !px-2.5 !text-[11px]`}>
                                       <TrendingUp className="w-3.5 h-3.5" />
-                                      <span>Gestión de Ventas</span>
+                                      <span>{terminology.ventas}</span>
                                     </Link>
                                   )}
                                   {modules.visitas !== false && (
-                                    <Link href={`/zonas/${zone}`} className={`nav-item !py-1.5 !px-2.5 !text-[11px] ${pathname === `/zonas/${zone}` && !pathname.includes('vendedor') ? 'active' : ''}`}>
+                                    <Link href={`/zonas/${zone}`} className={`nav-item !py-1.5 !px-2.5 !text-[11px]`}>
                                       <LayoutDashboard className="w-3.5 h-3.5" />
-                                      <span>Gestión de Visitas</span>
+                                      <span>{terminology.visitas}</span>
                                     </Link>
                                   )}
                                   {modules.empresas !== false && (
-                                    <Link href={`/zonas/${zone}/empresas`} className={`nav-item !py-1.5 !px-2.5 !text-[11px] ${isLinkActive(`/zonas/${zone}/empresas`) && !pathname.includes('vendedor') ? 'active' : ''}`}>
+                                    <Link href={`/zonas/${zone}/empresas`} className={`nav-item !py-1.5 !px-2.5 !text-[11px]`}>
                                       <Users className="w-3.5 h-3.5" />
-                                      <span>Empresas</span>
+                                      <span>{terminology.empresas}</span>
                                     </Link>
                                   )}
                                   {modules.planificador !== false && (
-                                    <Link href={`/zonas/${zone}/planificador`} className={`nav-item !py-1.5 !px-2.5 !text-[11px] ${isLinkActive(`/zonas/${zone}/planificador`) && !pathname.includes('vendedor') ? 'active' : ''}`}>
+                                    <Link href={`/zonas/${zone}/planificador`} className={`nav-item !py-1.5 !px-2.5 !text-[11px]`}>
                                       <MapIcon className="w-3.5 h-3.5" />
-                                      <span>Planificador Diario</span>
+                                      <span>{terminology.planificador}</span>
                                     </Link>
                                   )}
                                   {modules.reportes !== false && (
-                                    <Link href={`/zonas/${zone}/reportes`} className={`nav-item !py-1.5 !px-2.5 !text-[11px] ${isLinkActive(`/zonas/${zone}/reportes`) && !pathname.includes('vendedor') ? 'active' : ''}`}>
+                                    <Link href={`/zonas/${zone}/reportes`} className={`nav-item !py-1.5 !px-2.5 !text-[11px]`}>
                                       <FileText className="w-3.5 h-3.5" />
                                       <span>Reportes (PDF)</span>
                                     </Link>
@@ -352,7 +383,7 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
                               )}
                             </div>
 
-                            {/* VENDEDORES DE LA ZONA */}
+                            {/* VENDEDORES / EJECUTIVOS DE LA ZONA */}
                             {vendedoresPorZona[zone]?.map(v => {
                               const isVendedorActive = expandedVendedor === v.alias
                               const vQuery = `?vendedor=${encodeURIComponent(v.alias)}`
@@ -372,25 +403,25 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
                                       {modules.ventas !== false && (
                                         <Link href={`/zonas/${zone}/ventas${vQuery}`} className={`nav-item !py-1.5 !px-2.5 !text-[11px]`}>
                                           <TrendingUp className="w-3.5 h-3.5" />
-                                          <span>Gestión de Ventas</span>
+                                          <span>{terminology.ventas}</span>
                                         </Link>
                                       )}
                                       {modules.visitas !== false && (
                                         <Link href={`/zonas/${zone}${vQuery}`} className={`nav-item !py-1.5 !px-2.5 !text-[11px]`}>
                                           <LayoutDashboard className="w-3.5 h-3.5" />
-                                          <span>Gestión de Visitas</span>
+                                          <span>{terminology.visitas}</span>
                                         </Link>
                                       )}
                                       {modules.empresas !== false && (
                                         <Link href={`/zonas/${zone}/empresas${vQuery}`} className={`nav-item !py-1.5 !px-2.5 !text-[11px]`}>
                                           <Users className="w-3.5 h-3.5" />
-                                          <span>Empresas</span>
+                                          <span>{terminology.empresas}</span>
                                         </Link>
                                       )}
                                       {modules.planificador !== false && (
                                         <Link href={`/zonas/${zone}/planificador${vQuery}`} className={`nav-item !py-1.5 !px-2.5 !text-[11px]`}>
                                           <MapIcon className="w-3.5 h-3.5" />
-                                          <span>Planificador Diario</span>
+                                          <span>{terminology.planificador}</span>
                                         </Link>
                                       )}
                                       {modules.reportes !== false && (
@@ -416,7 +447,7 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
                       onClick={() => setShowCreateZone(true)}
                       className="nav-item flex items-center justify-center gap-1.5 mt-2 py-1.5 text-xs text-primary bg-primary/10 border border-primary/20 hover:bg-primary hover:text-white rounded-lg transition-all font-bold cursor-pointer"
                     >
-                      <Plus size={12} /> Nueva Zona
+                      <Plus size={12} /> Nueva {terminology.zona}
                     </button>
                   )}
                 </div>
@@ -428,7 +459,7 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
           {user.nivel < 3 && (
             <>
               <div className="px-3 py-1 text-[10px] font-black uppercase text-yellow-500/70 tracking-widest border-b border-white/5 mt-3 mb-1.5">
-                Comercial
+                Operaciones Comerciales
               </div>
               <Link href="/crm-web" className={`nav-item ${isLinkActive('/crm-web') ? 'active' : ''}`}>
                 <Laptop className="nav-icon text-emerald-400" />
@@ -437,19 +468,19 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
               {(user.nivel === 1 || modules.pedidos) && (
                 <Link href="/pedidos" className={`nav-item ${isLinkActive('/pedidos') ? 'active' : ''}`}>
                   <ShoppingCart className="nav-icon" />
-                  <span>Pedidos</span>
+                  <span>{terminology.pedidos}</span>
                 </Link>
               )}
               {(user.nivel === 1 || modules.ventas) && (
                 <Link href="/ventas" className={`nav-item ${isLinkActive('/ventas') ? 'active' : ''}`}>
                   <TrendingUp className="nav-icon" />
-                  <span>Ventas</span>
+                  <span>{terminology.ventas}</span>
                 </Link>
               )}
               {(user.nivel === 1 || modules.cobranzas) && (
                 <Link href="/cobranzas" className={`nav-item ${isLinkActive('/cobranzas') ? 'active' : ''}`}>
                   <Banknote className="nav-icon" />
-                  <span>Cobranzas</span>
+                  <span>{terminology.cobranzas}</span>
                 </Link>
               )}
               {(user.nivel === 1 || modules.pedidos) && (
@@ -461,16 +492,25 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
             </>
           )}
 
-          {/* Módulo de Usuarios (Solo si está explícitamente habilitado para Nivel 1/2, o si es Admin Nivel 1) */}
-          {user.nivel < 3 && (user.nivel === 1 || modules.usuarios) && (
+          {/* Módulo de Administración */}
+          {user.nivel < 3 && (
             <>
               <div className="px-3 py-1 text-[10px] font-black uppercase text-yellow-500/70 tracking-widest border-b border-white/5 mt-3 mb-1.5">
                 Administración
               </div>
-              <Link href="/usuarios" className={`nav-item ${isLinkActive('/usuarios') ? 'active' : ''}`}>
-                <ShieldCheck className="nav-icon" />
-                <span>Usuarios</span>
-              </Link>
+              {/* Acceso exclusivo a Super Admin para Nivel 1 */}
+              {user.nivel === 1 && (
+                <Link href="/super-admin/tenants" className={`nav-item ${isLinkActive('/super-admin') ? 'active' : ''}`}>
+                  <Building2 className="nav-icon text-indigo-400" />
+                  <span className="font-bold text-indigo-300">🏢 Inquilinos SaaS</span>
+                </Link>
+              )}
+              {(user.nivel === 1 || modules.usuarios) && (
+                <Link href="/usuarios" className={`nav-item ${isLinkActive('/usuarios') ? 'active' : ''}`}>
+                  <ShieldCheck className="nav-icon" />
+                  <span>Usuarios & Equipo</span>
+                </Link>
+              )}
             </>
           )}
         </nav>
@@ -482,10 +522,10 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
               <span>Configuración</span>
             </Link>
           )}
-          {/* Lista de Precios - All levels */}
+          {/* Catálogo de Productos / Servicios */}
           <Link href="/configuracion/productos" className={`nav-item ${isLinkActive('/configuracion/productos') ? 'active' : ''}`}>
             <Package className="nav-icon" />
-            <span>Lista de Precios</span>
+            <span>{terminology.productos}</span>
           </Link>
           <button onClick={handleLogout} className="nav-item" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}>
             <LogOut className="nav-icon" style={{ color: 'var(--danger)' }} />
@@ -497,7 +537,7 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
       {/* Main Content */}
       <main className="main-content">
         <header className="topbar">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button 
               className="mobile-menu-btn"
               onClick={() => setIsMobileMenuOpen(true)}
@@ -514,11 +554,15 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
                 filter: 'brightness(1.2)'
               }} 
             />
-            <div className="hidden sm:block">
+            <div className="hidden sm:flex items-center gap-2">
               <TenantSelector />
+              <CurrencyToggle />
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="sm:hidden">
+              <CurrencyToggle />
+            </div>
             <NotificationBell userAlias={user.alias} />
             <div className="flex flex-col text-right">
               <span className="text-xs font-black text-white leading-tight">{userName}</span>
@@ -540,7 +584,7 @@ export function AppShellClient({ children, logo, user, zones = [], vendedoresPor
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleCreateZone} className="glass-panel card w-full max-w-sm border border-white/10 p-6 flex flex-col gap-4 animate-fade-in">
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
-              <h3 className="font-bold text-white text-base">Crear Nueva Zona</h3>
+              <h3 className="font-bold text-white text-base">Crear Nueva {terminology.zona}</h3>
               <button type="button" onClick={() => setShowCreateZone(false)} className="text-secondary hover:text-white transition-all">
                 <X size={18} />
               </button>

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 import { AppShellClient } from './AppShellClient'
 import { TenantProvider } from '@/lib/tenantContext'
+import { CurrencyProvider } from '@/context/CurrencyContext'
 import { headers } from 'next/headers'
 
 export const dynamic = 'force-dynamic'
@@ -65,17 +66,20 @@ export default async function RootLayout({
   }
 
   let zones: string[] = []
-  let vendedoresPorZona: Record<string, Array<{ id: number, nombre: string, alias: string | null, zona: string | null }>> = {}
+  let allZones: Array<{ id: number; nombre: string; tenantId: number | null }> = []
+  let vendedoresPorZona: Record<string, Array<{ id: number, nombre: string, alias: string | null, zona: string | null, tenantId?: number | null }>> = {}
 
   try {
     const zonesList = await prisma.zona.findMany({
+      select: { id: true, nombre: true, tenantId: true },
       orderBy: { nombre: 'asc' }
     })
+    allZones = zonesList
     zones = zonesList.map(z => z.nombre)
 
     const vendedores = await prisma.usuario.findMany({
       where: { nivel: 3, activo: true },
-      select: { id: true, nombre: true, alias: true, zona: true }
+      select: { id: true, nombre: true, alias: true, zona: true, tenantId: true }
     })
 
     vendedoresPorZona = vendedores.reduce((acc, v) => {
@@ -92,12 +96,19 @@ export default async function RootLayout({
     <html lang="es">
       <body>
         <TenantProvider>
-          <AppShellClient logo={logo} user={user} zones={zones} vendedoresPorZona={vendedoresPorZona}>
-            {children}
-          </AppShellClient>
+          <CurrencyProvider>
+            <AppShellClient 
+              logo={logo} 
+              user={user} 
+              zones={zones} 
+              allZones={allZones}
+              vendedoresPorZona={vendedoresPorZona}
+            >
+              {children}
+            </AppShellClient>
+          </CurrencyProvider>
         </TenantProvider>
       </body>
     </html>
   )
 }
-

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 function extractLocality(addr: string): string | null {
   if (!addr) return null
   const parts = addr.split(',').map(p => p.trim())
@@ -18,17 +20,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { empresas } = await request.json()
+    const { empresas, tenantId } = await request.json()
     if (!empresas || !Array.isArray(empresas)) {
       return NextResponse.json({ error: 'Formato de datos inválido' }, { status: 400 })
     }
 
+    const targetTenantId = tenantId ? parseInt(String(tenantId)) : (user.tenantId || null)
+
     let successCount = 0
     let ignoredCount = 0
 
-    // Fetch existing companies to check for duplicates
-    // We check by exact name (case insensitive) or exact phone
+    // Fetch existing companies ONLY within this tenant to avoid false duplicate collisions across tenants
     const existingEmpresas = await prisma.empresa.findMany({
+      where: targetTenantId ? { tenantId: targetTenantId } : undefined,
       select: { nombre: true, telefono: true }
     })
 
@@ -71,17 +75,18 @@ export async function POST(request: Request) {
           telefono: telefonoNorm || null,
           direccion: direccionClean,
           partido: localidad,
-          barrio: localidad, // Populate the Location (Localidad) field
-          subZona: null, // Keep Mini-Zonas unchanged (they will be SIN ASIGNAR)
+          barrio: localidad,
+          subZona: null,
           rubro: emp.rubro?.trim() || null,
-          zona: emp.zona || null, // Zona sent from UI (can be selected zona)
-          estado: 'prospecto', // Default to prospecto as discussed
+          zona: emp.zona?.trim() || null, // Zona asignada por fila o por defecto
+          estado: 'prospecto',
           vendedorAsignado: emp.vendedorAsignado || (user.nivel === 3 ? user.alias : null),
           latitud: latitud,
-          longitud: longitud
+          longitud: longitud,
+          tenantId: targetTenantId
         })
         
-        // Add to sets to prevent duplicates WITHIN the imported file itself
+        // Add to sets to prevent duplicates WITHIN the imported batch itself
         existingNames.add(nombreNorm)
         if (telefonoNorm) existingPhones.add(telefonoNorm)
       }
@@ -99,9 +104,8 @@ export async function POST(request: Request) {
       success: successCount,
       ignored: ignoredCount
     })
-
   } catch (error: any) {
-    console.error('[API Import Empresas]', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    console.error('Error importando empresas:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

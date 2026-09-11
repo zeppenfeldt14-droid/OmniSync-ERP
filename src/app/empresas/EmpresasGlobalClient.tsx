@@ -6,6 +6,7 @@ import { Search, Plus, MapPin, Phone, Building2, Download, MessageCircle, AlertT
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import CsvImportModal from '@/components/CsvImportModal'
+import { useTenant } from '@/lib/tenantContext'
 
 type Empresa = {
   id: number
@@ -22,6 +23,7 @@ type Empresa = {
   estado: string
   cicloVentaDias: number | null
   creadoEn: Date
+  tenantId?: number | null
   visitas: any[]
 }
 
@@ -30,6 +32,7 @@ type Vendedor = {
   nombre: string
   alias: string
   zona: string | null
+  tenantId?: number | null
 }
 
 type SolicitudReasignacion = {
@@ -47,6 +50,7 @@ type SolicitudReasignacion = {
 export default function EmpresasGlobalClient({ 
   empresas, 
   zonasBase, 
+  allZonas = [],
   subZonas, 
   rubros,
   vendedores,
@@ -54,11 +58,14 @@ export default function EmpresasGlobalClient({
 }: { 
   empresas: Empresa[], 
   zonasBase: string[],
+  allZonas?: Array<{ id: number; nombre: string; tenantId: number | null }>,
   subZonas: string[], 
   rubros: string[],
   vendedores: Vendedor[],
   userNivel: number
 }) {
+  const { activeTenant, terminology } = useTenant()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [estadoFilter, setEstadoFilter] = useState<'todos' | 'prospecto' | 'activo' | 'baja' | 'descartada'>('todos')
   const [zonaFilter, setZonaFilter] = useState<string>('todas')
@@ -103,8 +110,27 @@ export default function EmpresasGlobalClient({
     }
   }
 
+  // Aislamiento por Tenant: filtrar empresas por activeTenant
+  const tenantEmpresas = useMemo(() => {
+    if (!activeTenant) return empresas
+    return empresas.filter(emp => !emp.tenantId || emp.tenantId === activeTenant.id)
+  }, [empresas, activeTenant])
+
+  // Zonas del tenant activo
+  const tenantZonas = useMemo(() => {
+    if (!activeTenant || !allZonas || allZonas.length === 0) return zonasBase
+    const matched = allZonas.filter(z => z.tenantId === activeTenant.id).map(z => z.nombre)
+    return matched.length > 0 ? matched : zonasBase
+  }, [zonasBase, allZonas, activeTenant])
+
+  // Vendedores del tenant activo
+  const tenantVendedores = useMemo(() => {
+    if (!activeTenant) return vendedores
+    return vendedores.filter(v => !v.tenantId || v.tenantId === activeTenant.id)
+  }, [vendedores, activeTenant])
+
   const filteredEmpresas = useMemo(() => {
-    const result = empresas.filter(emp => {
+    const result = tenantEmpresas.filter(emp => {
       const q = searchQuery.toLowerCase()
       const matchesSearch = q === '' || 
         emp.nombre.toLowerCase().includes(q) || 
@@ -143,33 +169,35 @@ export default function EmpresasGlobalClient({
       if (orderA !== orderB) return orderA - orderB
       return a.nombre.localeCompare(b.nombre)
     })
-  }, [empresas, searchQuery, estadoFilter, zonaFilter, vendedorFilter, rubroFilter])
+  }, [tenantEmpresas, searchQuery, estadoFilter, zonaFilter, vendedorFilter, rubroFilter])
 
   // Alertas Globales
-  const empresasSinZona = useMemo(() => empresas.filter(e => !e.zona || e.zona.trim() === ''), [empresas])
-  const empresasSinVendedor = useMemo(() => empresas.filter(e => !e.vendedorAsignado || e.vendedorAsignado.trim() === ''), [empresas])
+  const empresasSinZona = useMemo(() => tenantEmpresas.filter(e => !e.zona || e.zona.trim() === ''), [tenantEmpresas])
+  const empresasSinVendedor = useMemo(() => tenantEmpresas.filter(e => !e.vendedorAsignado || e.vendedorAsignado.trim() === ''), [tenantEmpresas])
 
   const kpis = useMemo(() => {
-    const total = empresas.length
-    const prospectos = empresas.filter(e => e.estado === 'prospecto').length
-    const clientes = empresas.filter(e => e.estado === 'activo').length
+    const total = tenantEmpresas.length
+    const prospectos = tenantEmpresas.filter(e => e.estado === 'prospecto').length
+    const clientes = tenantEmpresas.filter(e => e.estado === 'activo').length
     const efectividad = total > 0 ? Math.round((clientes / total) * 100) : 0
     return { total, prospectos, clientes, efectividad }
-  }, [empresas])
+  }, [tenantEmpresas])
 
   return (
     <div className="animate-fade-in pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="page-title">Empresas Globales</h1>
-          <p className="page-subtitle">Visualización unificada de todas las zonas y vendedores.</p>
+          <h1 className="page-title">{terminology.empresas}</h1>
+          <p className="page-subtitle">
+            Directorio de {terminology.empresas.toLowerCase()} en {activeTenant?.nombre || 'la plataforma'}.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowImportModal(true)} className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} title="Importar Potenciales (CSV)">
             <Upload size={16} /> Importar
           </button>
           <Link href={`/empresas/nueva`} className="btn btn-primary">
-            <Plus size={18} /> Nueva Empresa
+            <Plus size={18} /> {terminology.nuevaEmpresa}
           </Link>
         </div>
       </div>
@@ -178,10 +206,10 @@ export default function EmpresasGlobalClient({
         <div className="glass-panel card flex flex-col items-center justify-center text-center" style={{ padding: '1.25rem' }}>
           <div className="flex items-center gap-2 mb-2">
             <div className="badge badge-info" style={{ padding: '0.15rem 0.4rem' }}><Building2 size={12} /></div>
-            <span className="stat-label" style={{ fontSize: '0.85rem' }}>Total Empresas</span>
+            <span className="stat-label" style={{ fontSize: '0.85rem' }}>Total {terminology.empresas}</span>
           </div>
           <div className="stat-value text-primary" style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>{kpis.total}</div>
-          <div className="text-secondary" style={{ fontSize: '0.75rem' }}>Registradas globalmente</div>
+          <div className="text-secondary" style={{ fontSize: '0.75rem' }}>Registradas en este espacio</div>
         </div>
 
         <div className="glass-panel card flex flex-col items-center justify-center text-center" style={{ padding: '1.25rem' }}>
@@ -211,24 +239,32 @@ export default function EmpresasGlobalClient({
             <span className="stat-label text-blue-400" style={{ fontSize: '0.85rem' }}>Efectividad</span>
           </div>
           <div className="stat-value text-blue-400" style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>{kpis.efectividad}%</div>
-          <div className="text-secondary" style={{ fontSize: '0.75rem' }}>{kpis.clientes} cliente(s) de {kpis.total} objetivo</div>
+          <div className="text-secondary" style={{ fontSize: '0.75rem' }}>{kpis.clientes} de {kpis.total} objetivo</div>
         </div>
       </div>
 
       {userNivel === 1 && solicitudes.length > 0 && (
         <div className="mb-6 p-4 rounded-xl bg-orange-500/10 border border-orange-500/30">
           <h3 className="text-orange-400 font-bold mb-3 flex items-center gap-2">
-            <AlertTriangle size={18} /> Solicitudes de Reasignación de Nivel 2
+            <AlertTriangle size={18} /> Solicitudes de Reasignación Pendientes ({solicitudes.length})
           </h3>
-          <div className="flex flex-col gap-2">
-            {solicitudes.map(s => (
-              <div key={s.id} className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-white/5">
-                <div className="text-sm">
-                  El supervisor <span className="font-bold text-primary">{s.solicitadoPor}</span> solicita asignar la empresa <span className="font-bold text-white">{s.empresaNombre}</span> (actual: {s.zonaOrigen || 'Sin Zona'}) a la zona <span className="font-bold text-green-400">{s.zonaDestino}</span> con el vendedor <span className="font-bold text-green-400">{s.vendedorDestino}</span>.
+          <div className="space-y-2">
+            {solicitudes.map(sol => (
+              <div key={sol.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-black/40 border border-white/5 gap-3">
+                <div>
+                  <div className="font-bold text-white text-sm">{sol.empresaNombre}</div>
+                  <div className="text-xs text-secondary mt-0.5">
+                    Solicitado por: <span className="text-white">{sol.solicitadoPor}</span> &bull; 
+                    Destino: <span className="text-orange-400">{sol.zonaDestino}</span> ({sol.vendedorDestino})
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleAprobarSolicitud(s.id, true)} className="p-1.5 bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white rounded-md transition-colors" title="Aprobar"><CheckCircle size={18} /></button>
-                  <button onClick={() => handleAprobarSolicitud(s.id, false)} className="p-1.5 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white rounded-md transition-colors" title="Rechazar"><XCircle size={18} /></button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleAprobarSolicitud(sol.id, true)} className="btn btn-sm btn-success">
+                    Aprobar
+                  </button>
+                  <button onClick={() => handleAprobarSolicitud(sol.id, false)} className="btn btn-sm btn-danger">
+                    Rechazar
+                  </button>
                 </div>
               </div>
             ))}
@@ -236,200 +272,184 @@ export default function EmpresasGlobalClient({
         </div>
       )}
 
+      {/* Alertas de Registros Incompletos */}
       {(empresasSinZona.length > 0 || empresasSinVendedor.length > 0) && (
-        <div className="mb-6 flex flex-col md:flex-row gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           {empresasSinZona.length > 0 && (
-            <div 
-              className="flex-1 p-4 rounded-xl bg-red-500/10 border border-red-500/30 cursor-pointer hover:bg-red-500/20 transition-colors"
-              onClick={() => { setZonaFilter('SIN ASIGNAR'); setVendedorFilter('todos'); }}
-            >
-              <div className="flex items-center gap-3 text-red-400 mb-1">
-                <AlertTriangle size={20} />
-                <h3 className="font-bold">Empresas sin Zona</h3>
-              </div>
-              <p className="text-sm text-red-300/80 ml-8">Hay {empresasSinZona.length} empresas que no pertenecen a ninguna zona principal.</p>
+            <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-between">
+              <span className="text-xs text-yellow-300">
+                ⚠️ Hay <strong>{empresasSinZona.length}</strong> {terminology.empresas.toLowerCase()} sin {terminology.zona.toLowerCase()} asignada.
+              </span>
+              <button 
+                onClick={() => setZonaFilter('SIN ASIGNAR')} 
+                className="text-xs text-yellow-400 underline hover:text-yellow-200 cursor-pointer"
+              >
+                Ver
+              </button>
             </div>
           )}
           {empresasSinVendedor.length > 0 && (
-            <div 
-              className="flex-1 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30 cursor-pointer hover:bg-yellow-500/20 transition-colors"
-              onClick={() => { setVendedorFilter('sin_vendedor'); setZonaFilter('todas'); }}
-            >
-              <div className="flex items-center gap-3 text-yellow-400 mb-1">
-                <AlertTriangle size={20} />
-                <h3 className="font-bold">Empresas sin Vendedor</h3>
-              </div>
-              <p className="text-sm text-yellow-300/80 ml-8">Hay {empresasSinVendedor.length} empresas que no tienen vendedor asignado.</p>
+            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-between">
+              <span className="text-xs text-blue-300">
+                ℹ️ Hay <strong>{empresasSinVendedor.length}</strong> {terminology.empresas.toLowerCase()} sin {terminology.vendedor.toLowerCase()} asignado.
+              </span>
+              <button 
+                onClick={() => setVendedorFilter('sin_vendedor')} 
+                className="text-xs text-blue-400 underline hover:text-blue-200 cursor-pointer"
+              >
+                Ver
+              </button>
             </div>
           )}
         </div>
       )}
 
-      <div className="glass-panel card mb-8">
-        <div className="flex gap-4 items-end flex-wrap">
-          <div className="form-group flex-1 min-w-[200px] mb-0">
-            <label className="form-label">Buscar Empresa</label>
-            <div className="relative">
-              <Search size={18} className="absolute left-3 top-2.5 text-secondary" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Nombre, dirección..."
-                className="form-input pl-10"
-              />
-            </div>
+      {/* Filtros */}
+      <div className="glass-panel card p-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 text-secondary" size={16} />
+            <input
+              type="text"
+              placeholder={`Buscar ${terminology.empresa.toLowerCase()}, dirección...`}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="form-input pl-9 text-xs"
+            />
           </div>
 
-          <div className="form-group mb-0">
-            <label className="form-label">Estado</label>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar whitespace-nowrap">
-              {[
-                { id: 'todos', label: 'Todos' },
-                { id: 'prospecto', label: 'Potenciales' },
-                { id: 'activo', label: 'Activos' },
-                { id: 'baja', label: 'Bajas' },
-                { id: 'descartada', label: 'Descartadas' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setEstadoFilter(tab.id as any)}
-                  className={`btn ${estadoFilter === tab.id ? 'btn-primary' : 'btn-secondary'} px-4 py-2 text-sm`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-          <div>
-            <label className="form-label mb-2 block">Zona Principal</label>
-            <select 
-              value={zonaFilter} 
-              onChange={e => setZonaFilter(e.target.value)}
-              className="form-input"
-            >
-              <option value="todas">Todas las zonas</option>
-              <option value="SIN ASIGNAR">Sin Zona Asignada</option>
-              {zonasBase.map(z => (
-                <option key={z} value={z}>{z}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="form-label mb-2 block">Vendedor Asignado</label>
-            <select 
-              value={vendedorFilter} 
-              onChange={e => setVendedorFilter(e.target.value)}
-              className="form-input"
-            >
-              <option value="todos">Todos los vendedores</option>
-              <option value="sin_vendedor">Sin Vendedor Asignado</option>
-              {vendedores.map(v => (
-                <option key={v.alias} value={v.alias}>{v.nombre} ({v.zona || 'Sin Zona'})</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div className="hidden md:block table-container">
-        <table className="table w-full">
-          <thead>
-            <tr>
-              <th>Empresa</th>
-              <th>Zona / Ubicación</th>
-              <th>Contacto</th>
-              <th>Vendedor Asig.</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredEmpresas.map(emp => (
-              <tr key={emp.id}>
-                <td>
-                  <div className="flex items-center gap-2">
-                    <Building2 size={14} className="text-secondary" />
-                    <div>
-                      <div className="font-medium text-sm text-white">{emp.nombre}</div>
-                      <div className="text-[10px] text-secondary">Añadido {new Date(emp.creadoEn).toLocaleDateString()}</div>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <div className="text-xs text-white">{emp.zona || 'SIN ZONA'}</div>
-                  <div className="text-[10px] text-secondary mt-1">{emp.barrio || 'Sin barrio'} • {emp.subZona || 'Sin Mini-zona'}</div>
-                </td>
-                <td>
-                  <div className="text-xs flex flex-col gap-1">
-                    {emp.telefono ? (
-                      <span className="flex items-center gap-1.5"><Phone size={12} className="text-blue-400"/> {emp.telefono}</span>
-                    ) : '-'}
-                  </div>
-                </td>
-                <td>
-                  {emp.vendedorAsignado ? (
-                    <span className="text-xs font-bold text-primary px-2 py-1 bg-primary/10 rounded-md border border-primary/20">{emp.vendedorAsignado}</span>
-                  ) : (
-                    <span className="text-[10px] font-black uppercase text-yellow-500 px-2 py-1 bg-yellow-500/10 rounded-md border border-yellow-500/20">Sin asignar</span>
-                  )}
-                </td>
-                <td>
-                  <span className={`badge ${
-                    emp.estado === 'activo' ? 'badge-success' : 
-                    emp.estado === 'descartada' ? 'badge-danger' :
-                    emp.estado === 'baja' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                    'badge-warning'
-                  } text-[10px] px-2 py-0.5`}>
-                    {emp.estado === 'prospecto' ? 'POTENCIAL' : emp.estado.toUpperCase()}
-                  </span>
-                </td>
-                <td>
-                  <Link 
-                    href={`/zonas/${emp.zona || 'CABA'}/empresas/${emp.id}?origen=global`} 
-                    className="btn btn-secondary text-[11px] px-3 py-1.5"
-                  >
-                    Ver Ficha
-                  </Link>
-                </td>
-              </tr>
-            ))}
-            {filteredEmpresas.length === 0 && (
-              <tr>
-                <td colSpan={6} className="text-center p-8 text-secondary">No hay resultados.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      
-      {/* Mobile view omitted for brevity but uses same principles */}
-      <div className="md:hidden flex flex-col gap-3">
-        {filteredEmpresas.map(emp => (
-          <Link
-            key={emp.id}
-            href={`/zonas/${emp.zona || 'CABA'}/empresas/${emp.id}?origen=global`}
-            className="block p-4 rounded-xl bg-black/20 border border-white/5"
+          <select
+            value={estadoFilter}
+            onChange={e => setEstadoFilter(e.target.value as any)}
+            className="form-input text-xs"
           >
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="text-white font-bold text-sm leading-tight">{emp.nombre}</h3>
-              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap ${emp.estado === 'activo' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{emp.estado === 'prospecto' ? 'potencial' : emp.estado}</span>
-            </div>
-            <div className="text-[10px] text-secondary mt-1">
-              Zona: {emp.zona || 'SIN ZONA'} | Vendedor: <span className={emp.vendedorAsignado ? "text-primary font-bold" : "text-yellow-500 font-bold"}>{emp.vendedorAsignado || 'SIN ASIGNAR'}</span>
-            </div>
-          </Link>
-        ))}
+            <option value="todos">Todos los Estados</option>
+            <option value="prospecto">Potenciales</option>
+            <option value="activo">Clientes Activos</option>
+            <option value="baja">Baja</option>
+            <option value="descartada">Descartada</option>
+          </select>
+
+          <select
+            value={zonaFilter}
+            onChange={e => setZonaFilter(e.target.value)}
+            className="form-input text-xs"
+          >
+            <option value="todas">Todas las {terminology.zonas}</option>
+            {tenantZonas.map(z => (
+              <option key={z} value={z}>{z}</option>
+            ))}
+            <option value="SIN ASIGNAR">Sin Asignar</option>
+          </select>
+
+          <select
+            value={vendedorFilter}
+            onChange={e => setVendedorFilter(e.target.value)}
+            className="form-input text-xs"
+          >
+            <option value="todos">Todos los {terminology.vendedores}</option>
+            <option value="sin_vendedor">Sin Asignar</option>
+            {tenantVendedores.map(v => (
+              <option key={v.id} value={v.alias}>{v.nombre} ({v.alias})</option>
+            ))}
+          </select>
+
+          <select
+            value={rubroFilter}
+            onChange={e => setRubroFilter(e.target.value)}
+            className="form-input text-xs"
+          >
+            <option value="todos">Todos los Rubros</option>
+            {rubros.map(r => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        </div>
       </div>
-      
+
+      {/* Tabla de Empresas */}
+      <div className="glass-panel card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-white/10 bg-black/20 text-secondary uppercase font-bold tracking-wider text-[10px]">
+                <th className="p-3">{terminology.empresa}</th>
+                <th className="p-3">{terminology.zona}</th>
+                <th className="p-3">Rubro</th>
+                <th className="p-3">{terminology.vendedor}</th>
+                <th className="p-3">Estado</th>
+                <th className="p-3">Teléfono</th>
+                <th className="p-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {filteredEmpresas.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-secondary">
+                    No se encontraron {terminology.empresas.toLowerCase()} registradas en este espacio.
+                  </td>
+                </tr>
+              ) : (
+                filteredEmpresas.map(emp => {
+                  const estadoBadge = {
+                    activo: 'badge-success',
+                    prospecto: 'badge-warning',
+                    baja: 'badge-danger',
+                    descartada: 'badge-secondary'
+                  }[emp.estado] || 'badge-secondary'
+
+                  return (
+                    <tr key={emp.id} className="hover:bg-white/5 transition-colors">
+                      <td className="p-3 font-semibold text-white">
+                        <Link href={`/empresas/${emp.id}`} className="hover:text-primary transition-colors flex flex-col">
+                          <span>{emp.nombre}</span>
+                          <span className="text-[10px] text-secondary font-normal">{emp.direccion || emp.barrio || 'Sin dirección'}</span>
+                        </Link>
+                      </td>
+                      <td className="p-3">
+                        <span className="badge badge-outline text-[10px]">{emp.zona || 'Sin Zona'}</span>
+                      </td>
+                      <td className="p-3 text-secondary">{emp.rubro || '-'}</td>
+                      <td className="p-3">
+                        {emp.vendedorAsignado ? (
+                          <span className="text-slate-300 font-medium">{emp.vendedorAsignado}</span>
+                        ) : (
+                          <span className="text-secondary italic text-[10px]">Sin asignar</span>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        <span className={`badge ${estadoBadge} text-[10px] capitalize`}>{emp.estado}</span>
+                      </td>
+                      <td className="p-3 text-secondary">
+                        {emp.telefono ? (
+                          <a href={`tel:${emp.telefono}`} className="hover:text-white flex items-center gap-1">
+                            <Phone size={11} /> {emp.telefono}
+                          </a>
+                        ) : '-'}
+                      </td>
+                      <td className="p-3 text-right">
+                        <Link href={`/empresas/${emp.id}`} className="btn btn-xs btn-outline">
+                          Ver Perfil
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal de Importación CSV */}
       {showImportModal && (
         <CsvImportModal 
-          zonaName=""
+          zonaName={tenantZonas[0] || 'Zona 1'} 
           onClose={() => setShowImportModal(false)}
-          onImportComplete={() => window.location.reload()}
+          onImportComplete={() => {
+            setShowImportModal(false)
+            window.location.reload()
+          }}
         />
       )}
     </div>

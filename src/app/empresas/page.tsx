@@ -18,7 +18,22 @@ export default async function EmpresasGlobalPage() {
 
   const empresasAll = await prisma.empresa.findMany({
     orderBy: { nombre: 'asc' },
-    include: {
+    select: {
+      id: true,
+      nombre: true,
+      zona: true,
+      subZona: true,
+      rubro: true,
+      vendedorAsignado: true,
+      ocultarVendedor: true,
+      direccion: true,
+      barrio: true,
+      telefono: true,
+      telefono2: true,
+      estado: true,
+      cicloVentaDias: true,
+      creadoEn: true,
+      tenantId: true,
       visitas: {
         orderBy: { fecha: 'desc' },
         take: 1
@@ -26,11 +41,11 @@ export default async function EmpresasGlobalPage() {
     }
   })
 
-  // Obtener zonas
+  // Obtener zonas con su tenantId
   const dbZonas = await prisma.zona.findMany({
+    select: { id: true, nombre: true, tenantId: true },
     orderBy: { nombre: 'asc' }
   })
-  const zonasMap = dbZonas.map(z => z.nombre)
 
   // Obtener sub-zonas únicas
   const dbSubZonas = await prisma.subZona.findMany({
@@ -61,10 +76,10 @@ export default async function EmpresasGlobalPage() {
   })
   const rubrosList = Array.from(rubrosSet).sort()
 
-  // Obtener vendedores activos (Nivel 3 y usuarios con Metas Activas)
+  // Obtener usuarios activos (Vendedores)
   const usuariosActivos = await prisma.usuario.findMany({
     where: { activo: true },
-    select: { id: true, nombre: true, alias: true, zona: true, nivel: true, limitesEstado: true }
+    select: { id: true, nombre: true, alias: true, zona: true, nivel: true, tenantId: true, limitesEstado: true }
   })
   
   const vendedores = usuariosActivos.filter(u => {
@@ -74,14 +89,15 @@ export default async function EmpresasGlobalPage() {
       if (limites.metasActivas) return true;
     } catch(e) {}
     return false;
-  }).map(u => ({ id: u.id, nombre: u.nombre, alias: u.alias, zona: u.zona }))
+  }).map(u => ({ id: u.id, nombre: u.nombre, alias: u.alias, zona: u.zona, tenantId: u.tenantId }))
 
   return (
     <EmpresasGlobalClient 
-      empresas={empresasAll} 
-      zonasBase={zonasMap}
-      subZonas={subZones} 
-      rubros={rubrosList} 
+      empresas={empresasAll}
+      zonasBase={dbZonas.map(z => z.nombre)}
+      allZonas={dbZonas}
+      subZonas={subZones}
+      rubros={rubrosList}
       vendedores={vendedores}
       userNivel={user.nivel}
     />

@@ -22,6 +22,7 @@ model Tenant {
   sheetUrl           String?
   sheetUltimaSync    DateTime?
   configuracion      Json               @default("{}")
+  terminologia       Json?              @default("{}")
   activo             Boolean            @default(true)
   creadoEn           DateTime           @default(now())
   actualizadoEn      DateTime           @updatedAt
@@ -30,6 +31,8 @@ model Tenant {
   productos          Producto[]
   pedidos            Pedido[]
   abonosRecurrentes  AbonoRecurrente[]
+  zonas              Zona[]
+  usuarios           Usuario[]
 }
 
 model Empresa {
@@ -197,6 +200,8 @@ model Usuario {
   zonasHabilitadas   Json      @default("[]")
   isNivelTodo        Boolean   @default(false)
   unidadesNegocio    Json      @default("[\"Gerencia Comercial\"]")
+  tenantId           Int?
+  tenant             Tenant?   @relation(fields: [tenantId], references: [id])
 }
 
 model LogBitacora {
@@ -221,11 +226,15 @@ model SolicitudEliminacion {
 
 model Zona {
   id       Int      @id @default(autoincrement())
-  nombre   String   @unique
+  tenantId Int?
+  nombre   String
   creadoEn DateTime @default(now())
   barrios  String[] @default([])
   color    String?  @default("#3b82f6")
   geojson  Json?
+  tenant   Tenant?  @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, nombre])
 }
 
 model Producto {

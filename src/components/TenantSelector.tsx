@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
 import {
   Building2,
   ChevronDown,
@@ -180,6 +181,27 @@ export default function TenantSelector() {
                 <FileSpreadsheet size={14} />
                 <span>Sincronizar Google Sheet</span>
               </button>
+
+              <Link
+                href="/super-admin/tenants"
+                onClick={() => setIsOpen(false)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 10px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(99,102,241,0.1)',
+                  color: '#a5b4fc',
+                  textDecoration: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 600
+                }}
+              >
+                <Building2 size={14} />
+                <span>Panel Maestro Super Admin</span>
+              </Link>
 
               <button
                 onClick={() => {
