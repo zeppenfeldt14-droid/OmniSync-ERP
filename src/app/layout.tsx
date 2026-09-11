@@ -6,6 +6,8 @@ import { AppShellClient } from './AppShellClient'
 import { TenantProvider } from '@/lib/tenantContext'
 import { headers } from 'next/headers'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'By OmniSync',
   description: 'Sistema de gestión',
@@ -16,14 +18,32 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const user = await getSessionUser()
-  const headersList = await headers()
-  const pathname = headersList.get('x-pathname') || ''
-  
-  const logoConfig = await prisma.configuracionSistema.findUnique({
-    where: { clave: 'logo' }
-  })
-  const logo = logoConfig ? logoConfig.valor : null
+  let user = null
+  let logo: string | null = null
+  let headersList: Headers | null = null
+  let pathname = ''
+
+  try {
+    user = await getSessionUser()
+  } catch (e) {
+    console.warn('Layout getSessionUser error:', e)
+  }
+
+  try {
+    headersList = await headers()
+    pathname = headersList.get('x-pathname') || ''
+  } catch (e) {
+    console.warn('Layout headers error:', e)
+  }
+
+  try {
+    const logoConfig = await prisma.configuracionSistema.findUnique({
+      where: { clave: 'logo' }
+    })
+    logo = logoConfig ? logoConfig.valor : null
+  } catch (e) {
+    console.warn('Layout logoConfig error:', e)
+  }
 
   const isPublicRoute = 
     pathname.startsWith('/visitas-hoy') || 
@@ -44,22 +64,29 @@ export default async function RootLayout({
     )
   }
 
-  const zonesList = await prisma.zona.findMany({
-    orderBy: { nombre: 'asc' }
-  })
-  const zones = zonesList.map(z => z.nombre)
+  let zones: string[] = []
+  let vendedoresPorZona: Record<string, Array<{ id: number, nombre: string, alias: string | null, zona: string | null }>> = {}
 
-  const vendedores = await prisma.usuario.findMany({
-    where: { nivel: 3, activo: true },
-    select: { id: true, nombre: true, alias: true, zona: true }
-  })
+  try {
+    const zonesList = await prisma.zona.findMany({
+      orderBy: { nombre: 'asc' }
+    })
+    zones = zonesList.map(z => z.nombre)
 
-  const vendedoresPorZona = vendedores.reduce((acc, v) => {
-    const z = v.zona || 'Sin Zona'
-    if (!acc[z]) acc[z] = []
-    acc[z].push(v)
-    return acc
-  }, {} as Record<string, typeof vendedores>)
+    const vendedores = await prisma.usuario.findMany({
+      where: { nivel: 3, activo: true },
+      select: { id: true, nombre: true, alias: true, zona: true }
+    })
+
+    vendedoresPorZona = vendedores.reduce((acc, v) => {
+      const z = v.zona || 'Sin Zona'
+      if (!acc[z]) acc[z] = []
+      acc[z].push(v)
+      return acc
+    }, {} as Record<string, typeof vendedores>)
+  } catch (e) {
+    console.warn('Layout zones/vendedores error:', e)
+  }
 
   return (
     <html lang="es">

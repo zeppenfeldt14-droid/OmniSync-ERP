@@ -3,6 +3,8 @@ import { getSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { InicioPageClient } from './InicioPageClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function IndexPage({ searchParams }: { searchParams: Promise<{ period?: string, zona?: string, vendedor?: string }> }) {
   const user = await getSessionUser()
   
