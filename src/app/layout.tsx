@@ -46,13 +46,19 @@ export default async function RootLayout({
     console.warn('Layout logoConfig error:', e)
   }
 
+  const cleanPathname = pathname.replace(/^\/(golocinas|vinnaty)/i, '') || '/'
+
   const isPublicRoute = 
     pathname === '/' || 
     pathname === '' ||
+    pathname === '/login' ||
+    cleanPathname === '/login' ||
     pathname.startsWith('/visitas-hoy') || 
     pathname.startsWith('/precios-publicos') || 
     pathname.startsWith('/reportes-publicos') ||
-    pathname === '/login'
+    cleanPathname.startsWith('/visitas-hoy') || 
+    cleanPathname.startsWith('/precios-publicos') || 
+    cleanPathname.startsWith('/reportes-publicos')
 
   // If there is no authenticated user session (e.g. /login) OR they are visiting a public landing page (like the Lobby), render page full screen
   if (!user || isPublicRoute) {

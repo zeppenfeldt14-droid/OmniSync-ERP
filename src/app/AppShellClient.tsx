@@ -212,12 +212,24 @@ export function AppShellClient({
         
         <nav className="sidebar-nav">
           {/* Módulo Inicio */}
-          {(user.nivel === 1 || modules.inicio !== false) && (
-            <Link href="/" className={`nav-item ${isLinkActive('/', true) ? 'active' : ''}`}>
-              <Home className="nav-icon text-primary" />
-              <span className="font-bold text-white uppercase tracking-wider text-xs">Inicio</span>
-            </Link>
-          )}
+          {(user.nivel === 1 || modules.inicio !== false) && (() => {
+            const tenantSlug = activeTenant?.slug || (user.tenantId === 2 ? 'vinnaty' : 'golocinas')
+            const inicioHref = `/${tenantSlug}`
+            const isInicioActive = 
+              pathname === '/dashboard' || 
+              pathname === `/${tenantSlug}` || 
+              pathname === `/${tenantSlug}/` || 
+              pathname === `/${tenantSlug}/dashboard` ||
+              pathname === '/golocinas' ||
+              pathname === '/vinnaty'
+
+            return (
+              <Link href={inicioHref} className={`nav-item ${isInicioActive ? 'active' : ''}`}>
+                <Home className="nav-icon text-primary" />
+                <span className="font-bold text-white uppercase tracking-wider text-xs">Inicio</span>
+              </Link>
+            )
+          })()}
 
           {/* Bandeja de Mensajes (Global) */}
           <Link href="/mensajes" className={`nav-item ${isLinkActive('/mensajes') ? 'active' : ''}`}>

@@ -5,6 +5,13 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const sessionCookie = request.cookies.get('neosol_session')
 
+  const segments = pathname.split('/').filter(Boolean)
+  const firstSegment = segments[0]?.toLowerCase()
+  const isTenantPrefix = firstSegment === 'golocinas' || firstSegment === 'vinnaty'
+  const subPath = isTenantPrefix 
+    ? (segments.slice(1).length === 0 ? '/dashboard' : '/' + segments.slice(1).join('/'))
+    : pathname
+
   // Public paths that do not require authentication
   const isPublicPath = 
     pathname === '/' ||
@@ -13,7 +20,11 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/visitas-hoy') ||
     pathname.startsWith('/precios-publicos') ||
     pathname.startsWith('/reportes-publicos') ||
-    pathname.startsWith('/api/auth/login')
+    pathname.startsWith('/api/auth/login') ||
+    subPath.startsWith('/visitas-hoy') ||
+    subPath.startsWith('/precios-publicos') ||
+    subPath.startsWith('/reportes-publicos') ||
+    subPath === '/login'
 
   // Ignore static assets, next internals, and public logo assets
   const isStaticAsset =
@@ -30,8 +41,6 @@ export function middleware(request: NextRequest) {
 
   // If not authenticated and trying to access a secure path, redirect to login
   if (!sessionCookie && !isPublicPath) {
-    const segments = pathname.split('/').filter(Boolean)
-    const firstSegment = segments[0]?.toLowerCase()
     const loginUrl = new URL('/login', request.url)
     if (firstSegment === 'golocinas' || firstSegment === 'vinnaty') {
       loginUrl.searchParams.set('tenant', firstSegment)
@@ -41,16 +50,11 @@ export function middleware(request: NextRequest) {
   }
 
   // Path-based tenant routing: e.g. /golocinas or /vinnaty
-  const segments = pathname.split('/').filter(Boolean)
-  const firstSegment = segments[0]?.toLowerCase()
-
-  if (firstSegment === 'golocinas' || firstSegment === 'vinnaty') {
+  if (isTenantPrefix) {
     const tenantSlug = firstSegment
     requestHeaders.set('x-tenant-slug', tenantSlug)
 
     // Internal rewritten subpath (e.g. /golocinas -> /dashboard, /golocinas/pedidos -> /pedidos)
-    const remainingSegments = segments.slice(1)
-    const subPath = remainingSegments.length === 0 ? '/dashboard' : '/' + remainingSegments.join('/')
     const rewriteUrl = new URL(subPath + request.nextUrl.search, request.url)
 
     const response = NextResponse.rewrite(rewriteUrl, {

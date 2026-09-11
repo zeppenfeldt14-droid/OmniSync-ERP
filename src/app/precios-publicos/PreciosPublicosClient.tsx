@@ -29,6 +29,7 @@ interface Props {
   productos: any[]
   priceLists: PriceList[]
   activeListId: number | null
+  tenantName?: string
 }
 
 const LINEAS: Record<string, string> = {
@@ -36,27 +37,30 @@ const LINEAS: Record<string, string> = {
   tripack: 'Línea Tripack',
   minis: 'Línea Minis',
   snacks: 'Línea Snacks Horneados',
+  otros: 'Otros Productos / Servicios'
 }
 
 function formatPrice(n: number) {
   return n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })
 }
 
-export default function PreciosPublicosClient({ productos, priceLists, activeListId }: Props) {
+export default function PreciosPublicosClient({ productos = [], priceLists = [], activeListId, tenantName = 'Golocinas' }: Props) {
   const [selectedListId, setSelectedListId] = useState<number | null>(() => {
     if (activeListId) return activeListId
-    if (priceLists.length > 0) return priceLists[0].id
+    if (priceLists && priceLists.length > 0) return priceLists[0].id
     return null
   })
   const [tarifa, setTarifa] = useState<'min' | 'max'>('min')
 
   const selectedList = useMemo(() => {
+    if (!priceLists) return null
     return priceLists.find(l => l.id === selectedListId) || null
   }, [priceLists, selectedListId])
 
   const productosConPrecios = useMemo(() => {
+    if (!productos) return []
     return productos.map((p) => {
-      const priceRecord = selectedList?.precios.find((pr: any) => pr.productoId === p.id)
+      const priceRecord = selectedList?.precios?.find((pr: any) => pr.productoId === p.id)
       
       let precioPaquete = p.precioPaquete ?? 0
       let precioCaja = p.precioCaja ?? 0
@@ -86,8 +90,9 @@ export default function PreciosPublicosClient({ productos, priceLists, activeLis
   const byLinea = useMemo(() => {
     const groups: Record<string, typeof productosConPrecios> = {}
     for (const p of productosConPrecios) {
-      if (!groups[p.linea]) groups[p.linea] = []
-      groups[p.linea].push(p)
+      const lineaKey = p.linea || 'otros'
+      if (!groups[lineaKey]) groups[lineaKey] = []
+      groups[lineaKey].push(p)
     }
     return groups
   }, [productosConPrecios])
@@ -137,7 +142,7 @@ export default function PreciosPublicosClient({ productos, priceLists, activeLis
           Lista de Precios Oficial
         </h1>
         <p style={{ color: '#94a3b8', marginTop: '0.4rem', fontSize: '0.85rem' }}>
-          Neosol S.A. · Galletitas
+          {tenantName} · Tarifario Oficial
         </p>
       </div>
 
