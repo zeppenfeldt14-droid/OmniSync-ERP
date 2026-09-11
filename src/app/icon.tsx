@@ -6,8 +6,15 @@ export const size = { width: 256, height: 256 }
 export const contentType = 'image/png'
 
 export default async function Icon() {
-  const conf = await prisma.configuracionSistema.findUnique({ where: { clave: 'logo' } })
-  const logoUrl = conf?.valor || ''
+  let logoUrl = ''
+  if (process.env.DATABASE_URL) {
+    try {
+      const conf = await prisma.configuracionSistema.findUnique({ where: { clave: 'logo' } })
+      logoUrl = conf?.valor || ''
+    } catch (e) {
+      console.warn('Icon: Could not load logo from DB during build:', e)
+    }
+  }
 
   return new ImageResponse(
     (
