@@ -27,6 +27,11 @@ export async function GET() {
         },
         usuarios: {
           select: { id: true, nombre: true, alias: true, email: true, rol: true, nivel: true, zona: true }
+        },
+        empresas: {
+          select: { id: true, nombre: true, cuit: true, telefono: true, email: true, zona: true, estado: true },
+          take: 30,
+          orderBy: { id: 'desc' }
         }
       },
       orderBy: { id: 'asc' }

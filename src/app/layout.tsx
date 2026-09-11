@@ -65,6 +65,22 @@ export default async function RootLayout({
     )
   }
 
+  // Super Admin Portal: Dedicated standalone layout, completely isolated from tenant sales shell
+  const isSuperAdminRoute = pathname.startsWith('/super-admin')
+  if (isSuperAdminRoute) {
+    return (
+      <html lang="es">
+        <body className="bg-[#050505] text-white min-h-screen antialiased">
+          <TenantProvider>
+            <CurrencyProvider>
+              {children}
+            </CurrencyProvider>
+          </TenantProvider>
+        </body>
+      </html>
+    )
+  }
+
   let zones: string[] = []
   let allZones: Array<{ id: number; nombre: string; tenantId: number | null }> = []
   let vendedoresPorZona: Record<string, Array<{ id: number, nombre: string, alias: string | null, zona: string | null, tenantId?: number | null }>> = {}

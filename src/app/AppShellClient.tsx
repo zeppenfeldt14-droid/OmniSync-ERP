@@ -186,6 +186,11 @@ export function AppShellClient({
     return pathname === path || (path !== '/' && pathname.startsWith(path))
   }
 
+  // If viewing Super Admin portal, do not render tenant sales CRM shell
+  if (pathname.startsWith('/super-admin')) {
+    return <>{children}</>
+  }
+
   return (
     <div className="app-container">
       {/* Mobile Sidebar Overlay */}
@@ -498,13 +503,6 @@ export function AppShellClient({
               <div className="px-3 py-1 text-[10px] font-black uppercase text-yellow-500/70 tracking-widest border-b border-white/5 mt-3 mb-1.5">
                 Administración
               </div>
-              {/* Acceso exclusivo a Super Admin para Nivel 1 */}
-              {user.nivel === 1 && (
-                <Link href="/super-admin/tenants" className={`nav-item ${isLinkActive('/super-admin') ? 'active' : ''}`}>
-                  <Building2 className="nav-icon text-indigo-400" />
-                  <span className="font-bold text-indigo-300">🏢 Inquilinos SaaS</span>
-                </Link>
-              )}
               {(user.nivel === 1 || modules.usuarios) && (
                 <Link href="/usuarios" className={`nav-item ${isLinkActive('/usuarios') ? 'active' : ''}`}>
                   <ShieldCheck className="nav-icon" />
@@ -557,6 +555,16 @@ export function AppShellClient({
             <div className="hidden sm:flex items-center gap-2">
               <TenantSelector />
               <CurrencyToggle />
+              {user.nivel === 1 && (
+                <Link
+                  href="/super-admin"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-black uppercase tracking-wider transition shadow-sm"
+                  title="Panel de Mando Super Admin"
+                >
+                  <ShieldCheck size={14} className="text-amber-400" />
+                  <span>Super Admin</span>
+                </Link>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3">
