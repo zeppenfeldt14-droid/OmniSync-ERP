@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { 
   Infinity,
   ShieldCheck, 
@@ -23,8 +24,25 @@ import {
   Zap,
   Check,
   Building2,
-  ShieldAlert
+  Calendar,
+  Phone,
+  Mail,
+  MapPin,
+  ChevronDown
 } from 'lucide-react'
+
+// Helper to convert Google Drive sharing links into direct embed image URLs
+function formatDriveUrl(url?: string | null, fallbackUrl?: string): string {
+  if (!url) return fallbackUrl || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80'
+  
+  if (url.includes('drive.google.com')) {
+    const fileIdMatch = url.match(/[-\w]{25,}/)
+    if (fileIdMatch) {
+      return `https://lh3.googleusercontent.com/d/${fileIdMatch[0]}`
+    }
+  }
+  return url
+}
 
 interface ModeloIndustria {
   id: string
@@ -38,6 +56,9 @@ interface ModeloIndustria {
 }
 
 export default function LobbyPage() {
+  const router = useRouter()
+  const [selectedTenantQuick, setSelectedTenantQuick] = useState<'golocinas' | 'vinnaty'>('golocinas')
+  const [selectedModeloQuick, setSelectedModeloQuick] = useState('distribucion')
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedModel, setSelectedModel] = useState<ModeloIndustria | null>(null)
   const [formData, setFormData] = useState({
@@ -49,13 +70,17 @@ export default function LobbyPage() {
   })
   const [enviado, setEnviado] = useState(false)
 
+  // Default high-quality corporate images (customizable via Google Drive in Super Admin)
+  const heroImage1 = formatDriveUrl(null, 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=1000&q=80')
+  const aboutImage = formatDriveUrl(null, 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=1000&q=80')
+
   const modelosIndustria: ModeloIndustria[] = [
     {
       id: 'distribucion',
       titulo: 'Distribución Mayorista & Preventa en Calle',
       subtitulo: 'Ruteo en 4 zonas georreferenciadas, control de pedidos offline y cobranzas en mano.',
-      icono: <Truck className="w-6 h-6 text-blue-400" />,
-      colorAccent: '#3b82f6',
+      icono: <Truck className="w-5 h-5 text-orange-500" />,
+      colorAccent: '#f97316',
       caracteristicas: [
         'Geolocalización y ruteo diario de preventistas',
         'Toma de pedidos sin conexión y sincro en la nube',
@@ -63,14 +88,14 @@ export default function LobbyPage() {
         'Catálogo masivo con bultos y bonificaciones'
       ],
       moneda: 'ARS / USD',
-      badge: 'Plantilla Lista para Aprovisionamiento'
+      badge: 'Plantilla Lista'
     },
     {
       id: 'agencias',
       titulo: 'Agencias Digitales, Marketing & Software',
       subtitulo: 'Gestión de abonos recurrentes MRR, catálogo de servicios y cotizador dinámico.',
-      icono: <Laptop className="w-6 h-6 text-indigo-400" />,
-      colorAccent: '#6366f1',
+      icono: <Laptop className="w-5 h-5 text-orange-500" />,
+      colorAccent: '#f97316',
       caracteristicas: [
         'Seguimiento de contratos mensuales y retainers',
         'Cotizador dinámico de servicios y paquetes',
@@ -78,14 +103,14 @@ export default function LobbyPage() {
         'Facturación recurrente multimoneda (USD/ARS)'
       ],
       moneda: 'USD / ARS',
-      badge: 'Plantilla Lista para Aprovisionamiento'
+      badge: 'Plantilla Lista'
     },
     {
       id: 'salud',
       titulo: 'Salud, Laboratorios & Agentes APM',
       subtitulo: 'Auditoría de visitas médicas institucionales e inventario promocional de muestras.',
-      icono: <Pill className="w-6 h-6 text-rose-400" />,
-      colorAccent: '#f43f5e',
+      icono: <Pill className="w-5 h-5 text-orange-500" />,
+      colorAccent: '#f97316',
       caracteristicas: [
         'Fichero de médicos, especialistas y centros de salud',
         'Trazabilidad de muestras y vademécum científico',
@@ -93,14 +118,14 @@ export default function LobbyPage() {
         'Métricas de prescripción y cobertura territorial'
       ],
       moneda: 'ARS / USD',
-      badge: 'Plantilla Lista para Aprovisionamiento'
+      badge: 'Plantilla Lista'
     },
     {
       id: 'construccion',
       titulo: 'Materiales de Construcción & Corralones',
       subtitulo: 'Manejo de acopio, bultos pesados por m²/pallets y logística de entrega en obra.',
-      icono: <Hammer className="w-6 h-6 text-amber-400" />,
-      colorAccent: '#f59e0b',
+      icono: <Hammer className="w-5 h-5 text-orange-500" />,
+      colorAccent: '#f97316',
       caracteristicas: [
         'Cotización volumétrica por toneladas y pallets',
         'Logística de fletes y despacho programado a obra',
@@ -108,14 +133,14 @@ export default function LobbyPage() {
         'Gestión de acopios y retiros parciales'
       ],
       moneda: 'ARS',
-      badge: 'Plantilla Lista para Aprovisionamiento'
+      badge: 'Plantilla Lista'
     },
     {
       id: 'seguros',
       titulo: 'Seguros, Finanzas & Inversiones',
       subtitulo: 'Flujos de cotización, pólizas patrimoniales y liquidación de comisiones.',
-      icono: <Banknote className="w-6 h-6 text-emerald-400" />,
-      colorAccent: '#10b981',
+      icono: <Banknote className="w-5 h-5 text-orange-500" />,
+      colorAccent: '#f97316',
       caracteristicas: [
         'Control de pólizas vigentes y alertas de renovación',
         'Cálculo automatizado de comisiones por asesor',
@@ -123,14 +148,14 @@ export default function LobbyPage() {
         'Seguimiento de carteras de inversión'
       ],
       moneda: 'ARS / USD',
-      badge: 'Plantilla Lista para Aprovisionamiento'
+      badge: 'Plantilla Lista'
     },
     {
       id: 'agro',
       titulo: 'Agroinsumos, Semillas & Veterinaria',
       subtitulo: 'Seguimiento técnico a campo, presupuestos grano/USD y visitas georreferenciadas.',
-      icono: <Sprout className="w-6 h-6 text-teal-400" />,
-      colorAccent: '#14b8a6',
+      icono: <Sprout className="w-5 h-5 text-orange-500" />,
+      colorAccent: '#f97316',
       caracteristicas: [
         'Ruteo en zonas rurales y establecimientos agropecuarios',
         'Cotizaciones fijadas a precio de cereal o divisa extranjera',
@@ -138,9 +163,18 @@ export default function LobbyPage() {
         'Reportes de monitoreo técnico de cultivos'
       ],
       moneda: 'USD / ARS',
-      badge: 'Plantilla Lista para Aprovisionamiento'
+      badge: 'Plantilla Lista'
     }
   ]
+
+  const handleQuickEnter = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (selectedTenantQuick === 'golocinas') {
+      router.push('/golocinas')
+    } else {
+      router.push('/vinnaty')
+    }
+  }
 
   const handleOpenProvisionModal = (modelo: ModeloIndustria) => {
     setSelectedModel(modelo)
@@ -159,146 +193,466 @@ export default function LobbyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0D14] text-slate-100 font-sans selection:bg-blue-600/30 selection:text-blue-200">
+    <div className="min-h-screen bg-[#0C1017] text-slate-100 font-sans selection:bg-orange-500/30 selection:text-orange-200">
       
       {/* Top Navbar */}
-      <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-[#0B0F17]/85 border-b border-slate-800/60 transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <header className="w-full bg-[#0C1017] border-b border-slate-800/80 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           
-          {/* Brand Logo & Multi-Tenant Badge */}
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform duration-200">
-                <Infinity className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-extrabold text-lg tracking-tight text-white group-hover:text-blue-200 transition-colors">
-                  OmniSync <span className="font-light text-slate-400">Cloud</span>
-                </span>
-              </div>
-            </Link>
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider text-slate-300 bg-slate-800/90 border border-slate-700/60 ml-1">
-              Multi-Tenant Enterprise
+          {/* Navigation links left */}
+          <nav className="hidden lg:flex items-center gap-6 text-xs font-medium text-slate-400">
+            <a href="#workspaces" className="hover:text-white transition-colors">Unidades Operativas</a>
+            <a href="#modelos-industria" className="hover:text-white transition-colors">Modelos de Negocio</a>
+            <a href="#about" className="hover:text-white transition-colors">Plataforma</a>
+            <a href="#infraestructura" className="hover:text-white transition-colors">Infraestructura</a>
+          </nav>
+
+          {/* Center Brand Logo: The Station / OmniSync style */}
+          <Link href="/" className="flex items-center gap-2">
+            <div className="flex items-center">
+              <span className="font-serif italic text-2xl font-bold text-orange-500">The</span>
+              <span className="font-extrabold text-2xl tracking-tight text-white ml-1.5">OmniSync</span>
+            </div>
+            <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 ml-2">
+              Cloud ERP
             </span>
-          </div>
+          </Link>
 
-          {/* Right Navigation & CTAs */}
-          <nav className="flex items-center gap-2 sm:gap-4">
-            <a 
-              href="#modelos-industria" 
-              className="hidden md:inline-flex text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors px-3 py-1.5"
-            >
-              Modelos de Industria
-            </a>
-            <a 
-              href="#infraestructura" 
-              className="hidden lg:inline-flex text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors px-3 py-1.5"
-            >
-              Infraestructura
-            </a>
+          {/* Right Contact & Super Admin Access */}
+          <div className="flex items-center gap-4 text-xs">
+            <div className="hidden md:flex flex-col text-right text-slate-400 font-mono text-[11px]">
+              <span className="text-slate-300 font-medium">+54 (11) 5032-8800</span>
+              <span className="text-slate-500 text-[10px]">soporte@omnisync.com</span>
+            </div>
 
-            {/* Portal Super Admin Button */}
             <Link
               href="/super-admin"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 hover:border-slate-700 text-xs font-medium text-slate-300 hover:text-white transition-all duration-150"
-              title="Acceso exclusivo para administradores de la plataforma global"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white transition-all text-xs font-medium"
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-              <span>Portal Super Admin</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-orange-400" />
+              <span>Super Admin</span>
             </Link>
-
-            {/* Acceso Operadores Pill Button */}
-            <a
-              href="#inquilinos-activos"
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/25 hover:shadow-blue-600/40 hover:scale-[1.02] active:scale-[0.99] transition-all duration-150"
-            >
-              <span>Acceso Operadores</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </a>
-          </nav>
+          </div>
         </div>
       </header>
 
       <main>
-        {/* Hero Section */}
-        <section className="relative pt-20 pb-16 md:pt-28 md:pb-24 overflow-hidden">
-          {/* Subtle Ambient Radial Glow */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.18),rgba(11,15,23,0))] pointer-events-none blur-2xl" />
+        
+        {/* HERO SECTION: Organic Capsule Shapes (The Station Style) */}
+        <section className="relative pt-12 pb-16 lg:pt-20 lg:pb-24 overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+              
+              {/* Left Column: Diagonal Overlapping Capsule Masks */}
+              <div className="lg:col-span-6 relative flex justify-center items-center order-2 lg:order-1">
+                
+                {/* Floating Orange Accent Bubbles */}
+                <div className="absolute -top-4 left-6 w-7 h-7 rounded-full bg-orange-500/80 blur-[1px] animate-pulse" />
+                <div className="absolute top-1/2 -left-6 w-12 h-12 rounded-full bg-orange-600/70 blur-[2px]" />
+                <div className="absolute -bottom-6 right-16 w-5 h-5 rounded-full bg-orange-400/90" />
+                <div className="absolute top-1/3 -right-4 w-6 h-6 rounded-full bg-orange-500/60" />
 
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-            
-            {/* Top Centered Status Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/60 text-slate-300 text-xs font-medium shadow-sm mb-6 animate-in fade-in duration-500">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Arquitectura Multi-Tenant Aislada • Soporte Multi-Moneda (USD / ARS)</span>
-            </div>
+                {/* Main Composite Mask Container with Organic Angle */}
+                <div className="relative w-full max-w-[480px] h-[400px] sm:h-[460px] flex items-center justify-center">
+                  
+                  {/* Capsule 1 (Left / Back) */}
+                  <div className="absolute left-4 top-8 w-28 sm:w-32 h-[340px] sm:h-[380px] rounded-full overflow-hidden rotate-[-28deg] shadow-2xl border-4 border-[#0C1017] z-10">
+                    <img 
+                      src={heroImage1} 
+                      alt="Fuerza de ventas comercial" 
+                      className="w-full h-full object-cover scale-[1.7] rotate-[28deg]"
+                    />
+                  </div>
 
-            {/* Main Headline H1 */}
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-[1.12]">
-              El Sistema Nervioso Comercial para tus Fuerzas de Ventas B2B.
-            </h1>
+                  {/* Capsule 2 (Center / Main) */}
+                  <div className="absolute left-32 sm:left-36 top-2 w-32 sm:w-36 h-[380px] sm:h-[430px] rounded-full overflow-hidden rotate-[-28deg] shadow-2xl border-4 border-[#0C1017] z-20">
+                    <img 
+                      src={heroImage1} 
+                      alt="Reunión comercial de ruteo" 
+                      className="w-full h-full object-cover scale-[1.7] rotate-[28deg]"
+                    />
+                  </div>
 
-            {/* Subtitle */}
-            <p className="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed mt-5 font-normal">
-              OmniSync unifica ruteo georreferenciado de preventa, gestión logística, cotizaciones inteligentes y CRM operativo en instancias dedicadas para cada unidad de negocio.
-            </p>
+                  {/* Capsule 3 (Right / Accent) */}
+                  <div className="absolute right-6 sm:right-10 top-12 w-28 sm:w-32 h-[320px] sm:h-[360px] rounded-full overflow-hidden rotate-[-28deg] shadow-2xl border-4 border-[#0C1017] z-10">
+                    <img 
+                      src={heroImage1} 
+                      alt="Gestión en campo" 
+                      className="w-full h-full object-cover scale-[1.7] rotate-[28deg]"
+                    />
+                  </div>
 
-            {/* CTAs */}
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-              <a
-                href="#modelos-industria"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-700/80 text-sm font-semibold transition-all duration-150 hover:scale-[1.01]"
-              >
-                <Layers className="w-4 h-4 text-slate-400" />
-                <span>Explorar Módulos de Industria</span>
-              </a>
+                  {/* Upper Right Solid Accent Pill */}
+                  <div className="absolute -top-2 right-12 w-24 h-40 rounded-full bg-orange-500 rotate-[-28deg] -z-0 opacity-90" />
+                </div>
+              </div>
 
-              <a
-                href="#inquilinos-activos"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 hover:scale-[1.01] transition-all duration-150"
-              >
-                <span>Ingresar a mi Unidad Operativa</span>
-                <ArrowRight className="w-4 h-4" />
-              </a>
+              {/* Right Column: High Hierarchy Value Proposition */}
+              <div className="lg:col-span-6 order-1 lg:order-2 flex flex-col justify-center">
+                
+                {/* Micro Price / Tech Tag */}
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-3">
+                  <span>desde</span>
+                  <span className="text-orange-400 font-bold text-base font-serif">$49 USD</span>
+                  <span className="text-slate-500">/ mes por inquilino</span>
+                </div>
+
+                <div className="flex items-center gap-2 text-[11px] text-orange-400/90 uppercase tracking-widest font-mono font-semibold mb-4">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                  <span>4 ZONAS • GPS EN TIEMPO REAL • OFFLINE-FIRST</span>
+                </div>
+
+                {/* H1 Heading */}
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif text-white leading-[1.12] tracking-tight">
+                  Tu <span className="text-orange-500 not-italic font-sans font-extrabold">Fuerza de Ventas</span> para Escalar en Terreno
+                </h1>
+
+                {/* Subtitle */}
+                <p className="text-slate-400 text-sm sm:text-base leading-relaxed mt-5 max-w-xl">
+                  El ERP y CRM multi-tenant diseñado para coordinar preventistas en calle, automatizar toma de pedidos offline y auditar cobranzas con aislamiento total por empresa.
+                </p>
+
+                {/* Action Buttons */}
+                <div className="mt-8 flex flex-wrap items-center gap-4">
+                  <a
+                    href="#workspaces"
+                    className="px-7 py-3.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-150 hover:scale-[1.01]"
+                  >
+                    Ingresar a mi Unidad
+                  </a>
+
+                  <a
+                    href="#modelos-industria"
+                    className="px-6 py-3.5 rounded-xl bg-transparent hover:bg-slate-800/80 border border-slate-700 text-slate-200 text-sm font-semibold transition-all duration-150 flex items-center gap-2"
+                  >
+                    <span>Ver Modelos de Negocio</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </a>
+                </div>
+
+              </div>
+
             </div>
           </div>
         </section>
 
-        {/* Sección Central: Directorio de Modelos de Industria (Módulos Disponibles) */}
-        <section id="modelos-industria" className="py-16 md:py-20 border-t border-slate-800/60 bg-[#0B0F17]/60">
+        {/* QUICK ACCESS BAR (Interactive Row Matching The Station Style) */}
+        <section className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto -mt-4 mb-16">
+          <form 
+            onSubmit={handleQuickEnter}
+            className="p-3 sm:p-4 rounded-2xl bg-[#151C28] border border-slate-800/90 shadow-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-center"
+          >
+            {/* Input 1: Active Workspace */}
+            <div className="flex flex-col px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unidad Operativa</label>
+              <select 
+                value={selectedTenantQuick}
+                onChange={e => setSelectedTenantQuick(e.target.value as any)}
+                className="bg-transparent text-sm font-bold text-white focus:outline-none cursor-pointer mt-0.5"
+              >
+                <option value="golocinas" className="bg-slate-900 text-white">Golocinas (Consumo Masivo)</option>
+                <option value="vinnaty" className="bg-slate-900 text-white">Vinnaty (Servicios Digitales)</option>
+              </select>
+            </div>
+
+            {/* Input 2: Industry Model */}
+            <div className="flex flex-col px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modelo Comercial</label>
+              <select 
+                value={selectedModeloQuick}
+                onChange={e => setSelectedModeloQuick(e.target.value)}
+                className="bg-transparent text-sm font-bold text-slate-300 focus:outline-none cursor-pointer mt-0.5"
+              >
+                <option value="distribucion" className="bg-slate-900 text-white">Preventa & Logística 4 Zonas</option>
+                <option value="agencias" className="bg-slate-900 text-white">Agencia Digital & Retainers</option>
+                <option value="salud" className="bg-slate-900 text-white">Salud & Agentes APM</option>
+                <option value="construccion" className="bg-slate-900 text-white">Materiales de Construcción</option>
+              </select>
+            </div>
+
+            {/* Input 3: Security Status */}
+            <div className="flex flex-col px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 justify-center">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aislamiento Criptográfico</label>
+              <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 mt-0.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Base de Datos Dedicada</span>
+              </span>
+            </div>
+
+            {/* Action CTA Button */}
+            <div>
+              <button
+                type="submit"
+                className="w-full h-full min-h-[50px] rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm shadow-md shadow-orange-500/20 transition-all duration-150 flex items-center justify-center gap-2 hover:scale-[1.01]"
+              >
+                <span>Entrar al Panel</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </form>
+        </section>
+
+        {/* SECTION: CONOCE OMNISYNC (Split Layout Matching Reference) */}
+        <section id="about" className="py-16 md:py-24 border-t border-slate-800/60 bg-[#0E131C]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+              
+              {/* Left Column: Text + Bullet points + Action Buttons */}
+              <div className="lg:col-span-6">
+                
+                <div className="inline-block px-2.5 py-1 rounded bg-orange-500/10 text-orange-400 text-[11px] font-bold uppercase tracking-widest border border-orange-500/20 mb-4">
+                  SOBRE LA PLATAFORMA
+                </div>
+
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-white leading-tight">
+                  Bienvenido a <span className="font-sans font-extrabold text-orange-500 not-italic">OmniSync</span> Cloud!
+                </h2>
+
+                <p className="text-slate-300 text-sm sm:text-base leading-relaxed mt-5 font-medium">
+                  OmniSync es el núcleo operativo B2B para estructurar, auditar y escalar fuerzas de ventas de calle y distribución mayorista.
+                </p>
+
+                <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mt-3">
+                  Cada inquilino cuenta con una instancia completamente aislada con catálogo propio, listas de precios segmentadas, geolocalización de clientes y ruteo en 4 zonas operativas.
+                </p>
+
+                {/* Feature check list (orange checkmarks) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 mt-8 pt-6 border-t border-slate-800/80 text-xs font-semibold text-slate-300">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-orange-500 shrink-0" />
+                    <span>Ruteo GPS en 4 Zonas</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-orange-500 shrink-0" />
+                    <span>Toma de Pedidos Offline</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-orange-500 shrink-0" />
+                    <span>Conciliación de Cobranzas</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-orange-500 shrink-0" />
+                    <span>Auditoría de Preventistas</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-orange-500 shrink-0" />
+                    <span>Aislamiento Criptográfico</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-orange-500 shrink-0" />
+                    <span>Soporte Multimoneda USD/ARS</span>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="mt-9 flex items-center gap-4">
+                  <Link
+                    href="/golocinas"
+                    className="px-6 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition-all"
+                  >
+                    Entrar a Golocinas
+                  </Link>
+
+                  <Link
+                    href="/vinnaty"
+                    className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 font-semibold text-xs transition-all"
+                  >
+                    Entrar a Vinnaty
+                  </Link>
+                </div>
+
+              </div>
+
+              {/* Right Column: Crisp High-Resolution Workplace Photo */}
+              <div className="lg:col-span-6 relative">
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-slate-800 group">
+                  <img 
+                    src={aboutImage} 
+                    alt="Equipo comercial trabajando en OmniSync ERP" 
+                    className="w-full h-[420px] sm:h-[480px] object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0C1017] via-transparent to-transparent opacity-60" />
+                  
+                  {/* Floating Micro Badge in Photo */}
+                  <div className="absolute bottom-6 left-6 right-6 p-4 rounded-2xl bg-[#0C1017]/90 backdrop-blur-md border border-slate-800/90 flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-sm text-white">Plataforma Lista para Producción</div>
+                      <div className="text-xs text-slate-400">Sincronización transparente con Neon PostgreSQL</div>
+                    </div>
+                    <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION: 4 COUNTER STATS (Matching Reference 120+ / 15 / 98% / 24/7) */}
+        <section className="py-16 bg-[#0A0D14] border-t border-slate-800/60">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+              
+              <div className="flex flex-col items-center">
+                <div className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight flex items-baseline">
+                  <span>360</span>
+                  <span className="text-orange-500 font-serif font-normal ml-1">+</span>
+                </div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
+                  Clientes en Ruteo
+                </span>
+              </div>
+
+              <div className="flex flex-col items-center">
+                <div className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight">
+                  <span>4</span>
+                </div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
+                  Zonas Georreferenciadas
+                </span>
+              </div>
+
+              <div className="flex flex-col items-center">
+                <div className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight flex items-baseline">
+                  <span>98</span>
+                  <span className="text-orange-500 font-serif font-normal ml-0.5">%</span>
+                </div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
+                  Cobranza Efectiva
+                </span>
+              </div>
+
+              <div className="flex flex-col items-center">
+                <div className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight flex items-baseline">
+                  <span>24</span>
+                  <span className="text-orange-500 font-serif font-normal mx-0.5">/</span>
+                  <span>7</span>
+                </div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
+                  Disponibilidad Cloud
+                </span>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION: YOUR WORKSPACES / UNIDADES OPERATIVAS (Active Tenants Directory) */}
+        <section id="workspaces" className="py-16 md:py-20 border-t border-slate-800/60 bg-[#0C1017]">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <div className="text-center mb-10">
+              <div className="inline-block px-2.5 py-1 rounded bg-orange-500/10 text-orange-400 text-[11px] font-bold uppercase tracking-widest border border-orange-500/20 mb-3">
+                YOUR WORKSPACES
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-serif text-white">
+                Unidades Operativas Activas
+              </h2>
+              <p className="text-slate-400 text-xs sm:text-sm mt-2">
+                Seleccione su espacio de trabajo para ingresar a su panel aislado.
+              </p>
+            </div>
+
+            {/* Compact Cards (88px Height) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto">
+              
+              {/* Card 1: Golocinas */}
+              <Link
+                href="/golocinas"
+                className="group flex items-center justify-between h-[88px] max-h-[90px] px-5 bg-[#151C28] hover:bg-[#1A2332] border border-slate-800 hover:border-orange-500/60 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-orange-500/5 hover:scale-[1.01]"
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-11 h-11 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0 group-hover:scale-105 transition-transform">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-white text-lg tracking-tight group-hover:text-orange-300 transition-colors truncate">
+                        Golocinas
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-950/50 text-orange-300 border border-orange-800/40 shrink-0">
+                        Consumo Masivo
+                      </span>
+                    </div>
+                    <p className="text-slate-400 text-xs truncate mt-0.5">
+                      Preventa en calle, 4 zonas de ruteo y cobranzas
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs font-bold text-orange-400 group-hover:text-orange-300 shrink-0 pl-3">
+                  <span className="hidden sm:inline">Entrar al Panel</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* Card 2: Vinnaty */}
+              <Link
+                href="/vinnaty"
+                className="group flex items-center justify-between h-[88px] max-h-[90px] px-5 bg-[#151C28] hover:bg-[#1A2332] border border-slate-800 hover:border-orange-500/60 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-orange-500/5 hover:scale-[1.01]"
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-11 h-11 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0 group-hover:scale-105 transition-transform">
+                    <Laptop className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-white text-lg tracking-tight group-hover:text-orange-300 transition-colors truncate">
+                        Vinnaty
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-950/50 text-orange-300 border border-orange-800/40 shrink-0">
+                        Servicios Digitales
+                      </span>
+                    </div>
+                    <p className="text-slate-400 text-xs truncate mt-0.5">
+                      Agencia digital, retainers recurrentes y cotizador
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs font-bold text-orange-400 group-hover:text-orange-300 shrink-0 pl-3">
+                  <span className="hidden sm:inline">Entrar al Panel</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+            </div>
+
+          </div>
+        </section>
+
+        {/* SECTION: MODELOS DE INDUSTRIA */}
+        <section id="modelos-industria" className="py-16 md:py-20 border-t border-slate-800/60 bg-[#0E131C]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             
-            {/* Section Header */}
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
               <div>
-                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-blue-950/50 border border-blue-800/40 text-blue-400 text-xs font-semibold mb-3">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Catálogo de Soluciones Llave en Mano</span>
+                <div className="inline-block px-2.5 py-1 rounded bg-orange-500/10 text-orange-400 text-[11px] font-bold uppercase tracking-widest border border-orange-500/20 mb-3">
+                  MODELOS DE INDUSTRIA
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                  Modelos de Industria Pre-Configurados
+                <h2 className="text-3xl sm:text-4xl font-serif text-white">
+                  Plantillas Pre-Configuradas
                 </h2>
-                <p className="text-slate-400 text-sm sm:text-base mt-2 max-w-2xl">
-                  Plantillas arquitectónicas optimizadas para despliegue inmediato según la dinámica comercial de cada vertical de negocio.
+                <p className="text-slate-400 text-xs sm:text-sm mt-2 max-w-2xl">
+                  Módulos y flujos de preventa adaptados a la dinámica operativa de cada sector comercial.
                 </p>
               </div>
 
               <div className="mt-4 md:mt-0 text-xs text-slate-500 font-mono">
-                Despliegues en &lt; 24h • Aislamiento Criptográfico
+                Aprovisionamiento en &lt; 24h • Aislamiento Criptográfico
               </div>
             </div>
 
-            {/* 3-Column Grid of Industry Models */}
+            {/* 3-Column Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {modelosIndustria.map((modelo) => (
                 <div
                   key={modelo.id}
-                  className="group relative flex flex-col justify-between bg-[#161B26] hover:bg-[#19202E] border border-slate-800 hover:border-blue-500/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/5 hover:scale-[1.01]"
+                  className="group relative flex flex-col justify-between bg-[#151C28] hover:bg-[#1A2332] border border-slate-800 hover:border-orange-500/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-xl hover:shadow-orange-500/5 hover:scale-[1.01]"
                 >
                   <div>
-                    {/* Monochromatic Icon in Rounded Square Container */}
                     <div className="flex items-center justify-between mb-5">
-                      <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center group-hover:border-slate-700 transition-colors">
+                      <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center">
                         {modelo.icono}
                       </div>
                       <span className="text-[11px] font-mono text-slate-400 bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800">
@@ -306,34 +660,31 @@ export default function LobbyPage() {
                       </span>
                     </div>
 
-                    {/* Title and Subtitle */}
-                    <h3 className="text-lg font-bold text-white tracking-tight group-hover:text-blue-300 transition-colors">
+                    <h3 className="text-base font-bold text-white tracking-tight group-hover:text-orange-300 transition-colors">
                       {modelo.titulo}
                     </h3>
                     <p className="text-slate-400 text-xs leading-relaxed mt-2 line-clamp-2">
                       {modelo.subtitulo}
                     </p>
 
-                    {/* Features list */}
                     <ul className="mt-4 space-y-2 pt-4 border-t border-slate-800/80 text-xs text-slate-300">
                       {modelo.caracteristicas.map((caract, idx) => (
                         <li key={idx} className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                          <Check className="w-3.5 h-3.5 text-orange-400 shrink-0" />
                           <span>{caract}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
 
-                  {/* Bottom Provisioning Badge & Trigger */}
                   <div className="mt-6 pt-4 border-t border-slate-800/60 flex items-center justify-between">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-950/40 text-blue-400 border border-blue-800/30 text-[11px] font-semibold">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-orange-950/40 text-orange-400 border border-orange-800/30 text-[11px] font-semibold">
                       {modelo.badge}
                     </span>
 
                     <button
                       onClick={() => handleOpenProvisionModal(modelo)}
-                      className="text-xs font-semibold text-slate-400 hover:text-white flex items-center gap-1 group-hover:text-blue-400 transition-colors"
+                      className="text-xs font-semibold text-slate-400 hover:text-white flex items-center gap-1 group-hover:text-orange-400 transition-colors"
                     >
                       <span>Aprovisionar</span>
                       <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
@@ -346,142 +697,36 @@ export default function LobbyPage() {
           </div>
         </section>
 
-        {/* Sección Inferior: Directorio de Inquilinos Activos (Acceso Inmediato y Minimalista) */}
-        <section id="inquilinos-activos" className="py-16 md:py-20 border-t border-slate-800/60 bg-[#0A0D14]">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            
-            {/* Header: Clean & Direct */}
-            <div className="text-center mb-10">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-400 text-xs font-medium mb-3">
-                <Lock className="w-3.5 h-3.5 text-blue-400" />
-                <span>Acceso a Instancias Dedicadas</span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                Unidades Operativas Activas
-              </h2>
-              <p className="text-slate-400 text-sm mt-1.5">
-                Seleccione su espacio de trabajo para ingresar a su panel aislado.
-              </p>
-            </div>
-
-            {/* Grid of Compact Cards (Maximum 90px Height) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto">
-              
-              {/* Card 1: Golocinas */}
-              <Link
-                href="/golocinas"
-                className="group flex items-center justify-between h-[88px] max-h-[90px] px-5 bg-[#161B26] hover:bg-[#19202E] border border-slate-800 hover:border-amber-500/50 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-amber-500/5 hover:scale-[1.01]"
-              >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  {/* Circle Logo */}
-                  <div className="w-11 h-11 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-extrabold text-base shrink-0 group-hover:scale-105 transition-transform">
-                    <Truck className="w-5 h-5" />
-                  </div>
-                  
-                  {/* Name & Micro-badge */}
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-white text-lg tracking-tight group-hover:text-amber-300 transition-colors truncate">
-                        Golocinas
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-950/50 text-amber-300 border border-amber-800/40 shrink-0">
-                        Consumo Masivo
-                      </span>
-                    </div>
-                    <p className="text-slate-400 text-xs truncate mt-0.5">
-                      Logística de preventa, 4 zonas de calle y cobranzas
-                    </p>
-                  </div>
-                </div>
-
-                {/* Direct Action Link */}
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400 group-hover:text-amber-300 shrink-0 pl-3">
-                  <span className="hidden sm:inline">Entrar al Panel</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </Link>
-
-              {/* Card 2: Vinnaty */}
-              <Link
-                href="/vinnaty"
-                className="group flex items-center justify-between h-[88px] max-h-[90px] px-5 bg-[#161B26] hover:bg-[#19202E] border border-slate-800 hover:border-blue-500/50 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/5 hover:scale-[1.01]"
-              >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  {/* Circle Logo */}
-                  <div className="w-11 h-11 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 font-extrabold text-base shrink-0 group-hover:scale-105 transition-transform">
-                    <Laptop className="w-5 h-5" />
-                  </div>
-                  
-                  {/* Name & Micro-badge */}
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-white text-lg tracking-tight group-hover:text-blue-300 transition-colors truncate">
-                        Vinnaty
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-950/50 text-blue-300 border border-blue-800/40 shrink-0">
-                        Servicios Digitales
-                      </span>
-                    </div>
-                    <p className="text-slate-400 text-xs truncate mt-0.5">
-                      Agencia digital, retainers recurrentes y cotizador
-                    </p>
-                  </div>
-                </div>
-
-                {/* Direct Action Link */}
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-400 group-hover:text-blue-300 shrink-0 pl-3">
-                  <span className="hidden sm:inline">Entrar al Panel</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </Link>
-
-            </div>
-
-            {/* Quick Access to Global Administration */}
-            <div className="mt-8 text-center">
-              <Link 
-                href="/super-admin"
-                className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 transition-colors group"
-              >
-                <ShieldCheck className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />
-                <span>¿Eres Super Administrador? Gestiona inquilinos en el Portal Master →</span>
-              </Link>
-            </div>
-
-          </div>
-        </section>
-
-        {/* Section: Infraestructura y Seguridad de Nivel Bancario */}
-        <section id="infraestructura" className="py-16 md:py-20 border-t border-slate-800/60 bg-[#0B0F17]/40">
+        {/* SECTION: INFRAESTRUCTURA */}
+        <section id="infraestructura" className="py-16 md:py-20 border-t border-slate-800/60 bg-[#0A0D14]">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-12">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-400 text-xs font-medium mb-3">
-                <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                <span>Estándares Bancarios & Logísticos</span>
+              <div className="inline-block px-2.5 py-1 rounded bg-orange-500/10 text-orange-400 text-[11px] font-bold uppercase tracking-widest border border-orange-500/20 mb-3">
+                SEGURIDAD Y ESCALABILIDAD
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              <h2 className="text-3xl sm:text-4xl font-serif text-white">
                 Infraestructura Confiable y Segura
               </h2>
-              <p className="text-slate-400 text-sm mt-2">
-                Diseñado para operaciones de alta disponibilidad con total soberanía y resguardo de datos comerciales.
+              <p className="text-slate-400 text-xs sm:text-sm mt-2">
+                Arquitectura cloud distribuida con replicación activa, copias de seguridad continuas y cifrado de extremo a extremo.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-6 rounded-2xl bg-[#161B26]/60 border border-slate-800">
-                <div className="w-10 h-10 rounded-lg bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
+              <div className="p-6 rounded-2xl bg-[#151C28]/80 border border-slate-800">
+                <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 mb-4">
                   <Lock className="w-5 h-5" />
                 </div>
                 <h3 className="font-bold text-white text-base tracking-tight mb-2">
                   Aislamiento Criptográfico de Tenants
                 </h3>
                 <p className="text-slate-400 text-xs leading-relaxed">
-                  Cada inquilino cuenta con aislamiento lógico estricto a nivel de base de datos. Ningún usuario o vendedor de una unidad puede filtrar ni visualizar transacciones de otra.
+                  Cada inquilino cuenta con aislamiento lógico estricto a nivel de base de datos. Ningún usuario de una empresa puede filtrar ni visualizar transacciones de otra.
                 </p>
               </div>
 
-              <div className="p-6 rounded-2xl bg-[#161B26]/60 border border-slate-800">
-                <div className="w-10 h-10 rounded-lg bg-amber-600/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4">
+              <div className="p-6 rounded-2xl bg-[#151C28]/80 border border-slate-800">
+                <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 mb-4">
                   <Zap className="w-5 h-5" />
                 </div>
                 <h3 className="font-bold text-white text-base tracking-tight mb-2">
@@ -492,15 +737,15 @@ export default function LobbyPage() {
                 </p>
               </div>
 
-              <div className="p-6 rounded-2xl bg-[#161B26]/60 border border-slate-800">
-                <div className="w-10 h-10 rounded-lg bg-emerald-600/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4">
+              <div className="p-6 rounded-2xl bg-[#151C28]/80 border border-slate-800">
+                <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 mb-4">
                   <Server className="w-5 h-5" />
                 </div>
                 <h3 className="font-bold text-white text-base tracking-tight mb-2">
                   Alta Disponibilidad & SLA 99.9%
                 </h3>
                 <p className="text-slate-400 text-xs leading-relaxed">
-                  Desplegado sobre arquitectura serverless cloud distribuida con replicación activa, copias de seguridad automáticas y auditoría transaccional continua.
+                  Desplegado sobre infraestructura serverless cloud de alta concurrencia con replicación continua en Neon PostgreSQL y Render.
                 </p>
               </div>
             </div>
@@ -509,39 +754,39 @@ export default function LobbyPage() {
 
       </main>
 
-      {/* Footer Institucional */}
+      {/* FOOTER */}
       <footer className="border-t border-slate-800/80 bg-[#080B10] py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center">
-              <Infinity className="w-4 h-4 text-blue-400" />
+            <div className="flex items-center">
+              <span className="font-serif italic text-xl font-bold text-orange-500">The</span>
+              <span className="font-extrabold text-xl tracking-tight text-white ml-1.5">OmniSync</span>
             </div>
-            <div>
-              <div className="font-bold text-sm text-white tracking-tight">
-                OmniSync <span className="font-light text-slate-400">Cloud</span>
-              </div>
-              <div className="text-[11px] text-slate-400">
-                Cifrado de extremo a extremo • Tenants con aislamiento criptográfico • OmniSync Core Engine 2026
-              </div>
+            <div className="text-[11px] text-slate-500 pl-3 border-l border-slate-800">
+              Cifrado de extremo a extremo • Multi-Tenant Enterprise Engine 2026
             </div>
           </div>
 
           <div className="flex items-center gap-4 text-xs text-slate-400">
-            <Link href="/login" className="hover:text-white transition-colors">
-              Ingreso Operadores
+            <Link href="/golocinas" className="hover:text-white transition-colors">
+              Golocinas
             </Link>
             <span className="text-slate-700">•</span>
-            <Link href="/super-admin" className="hover:text-blue-400 transition-colors flex items-center gap-1">
+            <Link href="/vinnaty" className="hover:text-white transition-colors">
+              Vinnaty
+            </Link>
+            <span className="text-slate-700">•</span>
+            <Link href="/super-admin" className="hover:text-orange-400 transition-colors flex items-center gap-1 font-semibold">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Super Admin Master</span>
+              <span>Portal Super Admin</span>
             </Link>
           </div>
 
         </div>
       </footer>
 
-      {/* Provisioning Request Modal */}
+      {/* PROVISIONING MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative w-full max-w-lg bg-[#121722] border border-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8">
@@ -575,7 +820,7 @@ export default function LobbyPage() {
                     <h3 className="text-lg font-bold text-white tracking-tight">
                       Aprovisionar Nueva Unidad Operativa
                     </h3>
-                    <p className="text-xs text-blue-400 font-medium">
+                    <p className="text-xs text-orange-400 font-medium">
                       {selectedModel?.titulo}
                     </p>
                   </div>
@@ -596,7 +841,7 @@ export default function LobbyPage() {
                       placeholder="Ej: Distribuidora del Norte S.A."
                       value={formData.empresa}
                       onChange={e => setFormData({ ...formData, empresa: e.target.value })}
-                      className="w-full px-3.5 py-2 rounded-lg bg-slate-900/80 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+                      className="w-full px-3.5 py-2 rounded-lg bg-slate-900/80 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors"
                     />
                   </div>
 
@@ -611,7 +856,7 @@ export default function LobbyPage() {
                         placeholder="Ej: Juan Pérez"
                         value={formData.contacto}
                         onChange={e => setFormData({ ...formData, contacto: e.target.value })}
-                        className="w-full px-3.5 py-2 rounded-lg bg-slate-900/80 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+                        className="w-full px-3.5 py-2 rounded-lg bg-slate-900/80 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors"
                       />
                     </div>
                     <div>
@@ -624,7 +869,7 @@ export default function LobbyPage() {
                         placeholder="admin@empresa.com"
                         value={formData.email}
                         onChange={e => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full px-3.5 py-2 rounded-lg bg-slate-900/80 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+                        className="w-full px-3.5 py-2 rounded-lg bg-slate-900/80 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors"
                       />
                     </div>
                   </div>
@@ -636,7 +881,7 @@ export default function LobbyPage() {
                     <select
                       value={formData.vendedores}
                       onChange={e => setFormData({ ...formData, vendedores: e.target.value })}
-                      className="w-full px-3.5 py-2 rounded-lg bg-slate-900/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                      className="w-full px-3.5 py-2 rounded-lg bg-slate-900/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-orange-500 transition-colors"
                     >
                       <option value="1 a 5">1 a 5 vendedores (Starter)</option>
                       <option value="6 a 15">6 a 15 vendedores (Crecimiento)</option>
@@ -648,7 +893,7 @@ export default function LobbyPage() {
                   <div className="pt-2">
                     <button
                       type="submit"
-                      className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-lg shadow-blue-600/25 transition-all duration-150 flex items-center justify-center gap-2"
+                      className="w-full py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm shadow-lg shadow-orange-500/25 transition-all duration-150 flex items-center justify-center gap-2"
                     >
                       <Send className="w-4 h-4" />
                       <span>Confirmar y Enviar Solicitud</span>

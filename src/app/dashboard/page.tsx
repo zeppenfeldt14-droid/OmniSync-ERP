@@ -399,18 +399,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       orderBy: { creadoEn: 'desc' },
       include: { empresa: { select: { nombre: true, zona: true } } }
     }),
-    prisma.visita.findMany({
+    prisma.factura.findMany({
       where: {
-        resultado: 'venta',
-        empresa: {
+        pedido: {
           tenantId: currentTenantId,
-          ...(zoneFilter ? { zona: zoneFilter } : {}),
-          ...(hasVendedorFilter ? { vendedorAsignado: userAlias } : {})
+          ...(zoneFilter ? { empresa: { zona: zoneFilter } } : {}),
+          ...(hasVendedorFilter ? { vendedorAlias: userAlias } : {})
         }
       },
       take: 6,
-      orderBy: { fecha: 'desc' },
-      include: { empresa: { select: { nombre: true, zona: true } } }
+      orderBy: { creadoEn: 'desc' },
+      include: {
+        pedido: {
+          select: {
+            zona: true,
+            vendedorAlias: true,
+            empresa: { select: { nombre: true, zona: true } }
+          }
+        }
+      }
     })
   ])
 

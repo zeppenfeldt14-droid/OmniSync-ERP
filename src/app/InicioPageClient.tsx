@@ -650,14 +650,14 @@ export function InicioPageClient({ data, currentUser, vendedoresDisponibles = []
                           {p.numeroPedido}
                         </span>
                       </td>
-                      <td className="py-4 bg-[#141F3C]/30 border-y border-white/5 group-hover:border-primary/30 group-hover:bg-[#1A284C]/50 transition-all duration-300 text-secondary group-hover:text-white font-semibold transition-colors truncate max-w-[200px]" title={p.empresa.nombre}>
-                        {p.empresa.nombre}
+                      <td className="py-4 bg-[#141F3C]/30 border-y border-white/5 group-hover:border-primary/30 group-hover:bg-[#1A284C]/50 transition-all duration-300 text-secondary group-hover:text-white font-semibold transition-colors truncate max-w-[200px]" title={p.empresa?.nombre || 'Cliente General'}>
+                        {p.empresa?.nombre || 'Cliente General'}
                       </td>
                       <td className="py-4 bg-[#141F3C]/30 border-y border-white/5 group-hover:border-primary/30 group-hover:bg-[#1A284C]/50 transition-all duration-300 text-secondary/80 font-medium">
-                        {p.zona}
+                        {p.zona || 'Sin Zona'}
                       </td>
                       <td className="py-4 bg-[#141F3C]/30 border-y border-white/5 group-hover:border-primary/30 group-hover:bg-[#1A284C]/50 transition-all duration-300 text-right font-black text-white pr-4">
-                        {formatMoney(p.totalGeneral)}
+                        {formatMoney(p.totalGeneral || p.total || 0)}
                       </td>
                       <td className="py-4 rounded-r-2xl bg-[#141F3C]/30 border-y border-r border-white/5 group-hover:border-primary/30 group-hover:bg-[#1A284C]/50 transition-all duration-300 text-center pr-4">
                         <span className={`px-2.5 py-0.5 rounded-full font-bold text-[9px] tracking-wider border shadow-md ${
@@ -665,7 +665,7 @@ export function InicioPageClient({ data, currentUser, vendedoresDisponibles = []
                           p.estado === 'borrador' ? 'bg-gray-500/10 text-gray-400 border-white/5' :
                           'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_12px_rgba(245,158,11,0.08)]'
                         }`}>
-                          {p.estado.toUpperCase()}
+                          {(p.estado || 'REGISTRADO').toUpperCase()}
                         </span>
                       </td>
                     </tr>
@@ -700,28 +700,30 @@ export function InicioPageClient({ data, currentUser, vendedoresDisponibles = []
                         <Receipt size={14} />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs font-bold text-white group-hover:text-primary transition-colors truncate max-w-[140px]">{v.pedido.empresa.nombre}</span>
-                        <span className="text-[10px] text-secondary/60 font-semibold">{v.numeroFactura}</span>
+                        <span className="text-xs font-bold text-white group-hover:text-primary transition-colors truncate max-w-[140px]">
+                          {v.pedido?.empresa?.nombre || v.empresa?.nombre || 'Cliente General'}
+                        </span>
+                        <span className="text-[10px] text-secondary/60 font-semibold">{v.numeroFactura || `FAC-${v.id}`}</span>
                       </div>
                     </div>
                     <span className={`shrink-0 text-[8px] font-black uppercase px-2 py-0.5 rounded-full border tracking-wider ${
                       v.tipo === 'A' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
                       'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
                     }`}>
-                      FAC-{v.tipo}
+                      {v.tipo ? `FAC-${v.tipo}` : 'VENTA'}
                     </span>
                   </div>
                   
                   <div className="flex justify-between items-center text-xs mt-3">
                     <span className="text-[10px] text-secondary/70 font-semibold flex items-center gap-1">
-                      <Clock size={11} className="text-secondary/50" /> {new Date(v.creadoEn).toLocaleDateString()}
+                      <Clock size={11} className="text-secondary/50" /> {new Date(v.creadoEn || v.fecha || Date.now()).toLocaleDateString()}
                     </span>
-                    <span className="font-black text-white text-sm bg-white/5 px-2 py-0.5 rounded-md">{formatMoney(v.total)}</span>
+                    <span className="font-black text-white text-sm bg-white/5 px-2 py-0.5 rounded-md">{formatMoney(v.total || v.totalGeneral || 0)}</span>
                   </div>
 
                   <div className="text-[9px] text-secondary/50 border-t border-white/5 pt-2 mt-2 flex justify-between items-center">
-                    <span>Zona: <b className="text-secondary/80">{v.pedido.zona}</b></span>
-                    <span>Vendedor: <b className="text-secondary/80">@{v.pedido.vendedorAlias}</b></span>
+                    <span>Zona: <b className="text-secondary/80">{v.pedido?.zona || v.empresa?.zona || v.zona || 'General'}</b></span>
+                    <span>Vendedor: <b className="text-secondary/80">@{v.pedido?.vendedorAlias || v.vendedorAlias || 'Ventas'}</b></span>
                   </div>
                 </div>
               ))}
