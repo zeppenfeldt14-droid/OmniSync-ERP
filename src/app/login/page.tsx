@@ -1,13 +1,23 @@
 'use client'
 
-import { useState } from 'react'
-import { Lock } from 'lucide-react'
+import { useState, Suspense } from 'react'
+import { Lock, ArrowLeft, ShieldCheck, Truck, Laptop } from 'lucide-react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams()
+  const tenantParam = searchParams.get('tenant')
+  const portalParam = searchParams.get('portal')
+
   const [alias, setAlias] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const isSuperAdminPortal = portalParam === 'super-admin'
+  const isGolocinas = tenantParam === 'golocinas'
+  const isVinnaty = tenantParam === 'vinnaty'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -60,7 +70,7 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#1a1a2e',
+      background: '#07090e',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -69,50 +79,115 @@ export default function LoginPage() {
       {/* Floating white card */}
       <div style={{
         background: '#ffffff',
-        borderRadius: '18px',
-        padding: '48px 40px 40px',
+        borderRadius: '22px',
+        padding: '44px 36px 36px',
         width: '100%',
-        maxWidth: '400px',
-        boxShadow: '0 25px 60px rgba(0,0,0,0.4)',
+        maxWidth: '420px',
+        boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
         textAlign: 'center',
       }}>
-        {/* Orange lock icon */}
+        {/* Portal / Tenant Specific Badge */}
+        {isSuperAdminPortal && (
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 12px',
+            borderRadius: '20px',
+            backgroundColor: 'rgba(245, 158, 11, 0.15)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            color: '#b45309',
+            fontSize: '11px',
+            fontWeight: 800,
+            marginBottom: '16px',
+            textTransform: 'uppercase',
+            letterSpacing: '1px'
+          }}>
+            <ShieldCheck size={14} color="#d97706" />
+            <span>Portal Super Admin</span>
+          </div>
+        )}
+
+        {isGolocinas && (
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 12px',
+            borderRadius: '20px',
+            backgroundColor: 'rgba(37, 99, 235, 0.12)',
+            border: '1px solid rgba(37, 99, 235, 0.25)',
+            color: '#1d4ed8',
+            fontSize: '11px',
+            fontWeight: 800,
+            marginBottom: '16px',
+            textTransform: 'uppercase',
+            letterSpacing: '1px'
+          }}>
+            <Truck size={14} color="#2563eb" />
+            <span>Unidad Golocinas • Mayorista</span>
+          </div>
+        )}
+
+        {isVinnaty && (
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 12px',
+            borderRadius: '20px',
+            backgroundColor: 'rgba(147, 51, 234, 0.12)',
+            border: '1px solid rgba(147, 51, 234, 0.25)',
+            color: '#7e22ce',
+            fontSize: '11px',
+            fontWeight: 800,
+            marginBottom: '16px',
+            textTransform: 'uppercase',
+            letterSpacing: '1px'
+          }}>
+            <Laptop size={14} color="#9333ea" />
+            <span>Unidad Vinnaty • Agencia Digital</span>
+          </div>
+        )}
+
+        {/* Lock icon */}
         <div style={{
-          width: '64px',
-          height: '64px',
+          width: '60px',
+          height: '60px',
           borderRadius: '50%',
-          background: '#ea580c',
+          background: isSuperAdminPortal ? '#d97706' : (isVinnaty ? '#7c3aed' : (isGolocinas ? '#2563eb' : '#ea580c')),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          margin: '0 auto 24px',
-          boxShadow: '0 8px 24px rgba(234, 88, 12, 0.35)',
+          margin: '0 auto 20px',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+          transition: 'all 0.3s'
         }}>
-          <Lock size={28} color="#ffffff" />
+          {isSuperAdminPortal ? <ShieldCheck size={28} color="#ffffff" /> : <Lock size={26} color="#ffffff" />}
         </div>
 
         {/* Title block */}
         <h1 style={{
-          fontSize: '22px',
+          fontSize: '20px',
           fontWeight: 900,
-          fontStyle: 'italic',
           color: '#1a1a2e',
           letterSpacing: '1px',
-          margin: '0 0 2px',
+          margin: '0 0 4px',
           textTransform: 'uppercase',
         }}>
-          CRM NEOSOL
+          {isSuperAdminPortal 
+            ? 'SUPER ADMIN OMNISYNC' 
+            : (isVinnaty ? 'VINNATY AGENCIA' : (isGolocinas ? 'GOLOCINAS LOGÍSTICA' : 'OMNISYNC ERP'))}
         </h1>
         <p style={{
-          fontSize: '13px',
+          fontSize: '12px',
           fontWeight: 700,
-          fontStyle: 'italic',
-          color: '#1a1a2e',
-          letterSpacing: '2px',
-          margin: '0 0 32px',
+          color: '#64748b',
+          letterSpacing: '1.5px',
+          margin: '0 0 28px',
           textTransform: 'uppercase',
         }}>
-          USER STAFF
+          {isSuperAdminPortal ? 'ACCESO DE GOBERNANZA' : 'ACCESO DE OPERADORES'}
         </p>
 
         {/* Error message */}
@@ -131,15 +206,27 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit}>
+        {/* Login form */}
+        <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
           {/* Alias field */}
-          <div style={{ marginBottom: '16px' }}>
+          <div style={{ marginBottom: '22px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '11px',
+              fontWeight: 800,
+              color: '#374151',
+              letterSpacing: '1px',
+              textTransform: 'uppercase',
+              marginBottom: '6px',
+            }}>
+              USUARIO / ALIAS
+            </label>
             <input
               type="text"
-              placeholder="Alias de Usuario"
               value={alias}
               onChange={(e) => { setAlias(e.target.value); setError(''); }}
+              placeholder="Ej. Elarez, vinnaty, admin..."
+              autoFocus
               autoComplete="username"
               required
               style={{
@@ -148,7 +235,7 @@ export default function LoginPage() {
                 borderBottom: '1.5px solid #e5e7eb',
                 padding: '12px 4px',
                 fontSize: '14px',
-                color: '#374151',
+                color: '#1e293b',
                 background: 'transparent',
                 outline: 'none',
                 transition: 'border-color 0.2s',
@@ -160,12 +247,23 @@ export default function LoginPage() {
           </div>
 
           {/* Password field */}
-          <div style={{ marginBottom: '28px' }}>
+          <div style={{ marginBottom: '30px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '11px',
+              fontWeight: 800,
+              color: '#374151',
+              letterSpacing: '1px',
+              textTransform: 'uppercase',
+              marginBottom: '6px',
+            }}>
+              CONTRASEÑA
+            </label>
             <input
               type="password"
-              placeholder="Contraseña"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setError(''); }}
+              placeholder="••••••••••••"
               autoComplete="current-password"
               required
               style={{
@@ -174,7 +272,7 @@ export default function LoginPage() {
                 borderBottom: '1.5px solid #e5e7eb',
                 padding: '12px 4px',
                 fontSize: '14px',
-                color: '#374151',
+                color: '#1e293b',
                 background: 'transparent',
                 outline: 'none',
                 transition: 'border-color 0.2s',
@@ -192,25 +290,57 @@ export default function LoginPage() {
             style={{
               width: '100%',
               padding: '14px',
-              background: isLoading ? '#fb923c' : '#ea580c',
+              background: isLoading ? '#fb923c' : (isSuperAdminPortal ? '#d97706' : (isVinnaty ? '#7c3aed' : (isGolocinas ? '#2563eb' : '#ea580c'))),
               color: '#ffffff',
               border: 'none',
-              borderRadius: '10px',
+              borderRadius: '12px',
               fontSize: '13px',
               fontWeight: 800,
               letterSpacing: '2px',
               textTransform: 'uppercase',
               cursor: isLoading ? 'not-allowed' : 'pointer',
               transition: 'background 0.2s, transform 0.1s',
-              boxShadow: '0 4px 14px rgba(234, 88, 12, 0.3)',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15)',
             }}
-            onMouseEnter={(e) => { if (!isLoading) e.currentTarget.style.background = '#c2410c' }}
-            onMouseLeave={(e) => { if (!isLoading) e.currentTarget.style.background = '#ea580c' }}
           >
             {isLoading ? 'VERIFICANDO...' : 'ENTRAR AL SISTEMA'}
           </button>
         </form>
+
+        {/* Back to Lobby link */}
+        <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
+          <Link
+            href="/"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              fontWeight: 700,
+              color: '#64748b',
+              textDecoration: 'none',
+              transition: 'color 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#0f172a'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#64748b'}
+          >
+            <ArrowLeft size={14} />
+            <span>Volver al Lobby de OmniSync</span>
+          </Link>
+        </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', background: '#07090e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f8fafc', fontSize: '14px', fontFamily: 'sans-serif' }}>
+        Iniciando portal de acceso...
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }

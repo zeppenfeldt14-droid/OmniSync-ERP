@@ -7,6 +7,7 @@ export function middleware(request: NextRequest) {
 
   // Public paths that do not require authentication
   const isPublicPath = 
+    pathname === '/' ||
     pathname === '/login' || 
     pathname === '/visitas-hoy-caba' ||
     pathname.startsWith('/visitas-hoy') ||
@@ -29,7 +30,12 @@ export function middleware(request: NextRequest) {
 
   // If not authenticated and trying to access a secure path, redirect to login
   if (!sessionCookie && !isPublicPath) {
+    const segments = pathname.split('/').filter(Boolean)
+    const firstSegment = segments[0]?.toLowerCase()
     const loginUrl = new URL('/login', request.url)
+    if (firstSegment === 'golocinas' || firstSegment === 'vinnaty') {
+      loginUrl.searchParams.set('tenant', firstSegment)
+    }
     loginUrl.searchParams.set('callbackUrl', pathname)
     return NextResponse.redirect(loginUrl)
   }
@@ -42,8 +48,9 @@ export function middleware(request: NextRequest) {
     const tenantSlug = firstSegment
     requestHeaders.set('x-tenant-slug', tenantSlug)
 
-    // Internal rewritten subpath (e.g. /golocinas -> /, /golocinas/pedidos -> /pedidos)
-    const subPath = '/' + segments.slice(1).join('/')
+    // Internal rewritten subpath (e.g. /golocinas -> /dashboard, /golocinas/pedidos -> /pedidos)
+    const remainingSegments = segments.slice(1)
+    const subPath = remainingSegments.length === 0 ? '/dashboard' : '/' + remainingSegments.join('/')
     const rewriteUrl = new URL(subPath + request.nextUrl.search, request.url)
 
     const response = NextResponse.rewrite(rewriteUrl, {

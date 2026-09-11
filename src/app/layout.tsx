@@ -47,17 +47,19 @@ export default async function RootLayout({
   }
 
   const isPublicRoute = 
+    pathname === '/' || 
+    pathname === '' ||
     pathname.startsWith('/visitas-hoy') || 
     pathname.startsWith('/precios-publicos') || 
     pathname.startsWith('/reportes-publicos') ||
     pathname === '/login'
 
-  // If there is no authenticated user session (e.g. /login) OR they are visiting a public landing page, render page full screen
+  // If there is no authenticated user session (e.g. /login) OR they are visiting a public landing page (like the Lobby), render page full screen
   if (!user || isPublicRoute) {
     return (
       <html lang="es">
         <body>
-          <div className="min-h-screen bg-[#0B132B]">
+          <div className="min-h-screen bg-[#07090e]">
             {children}
           </div>
         </body>
