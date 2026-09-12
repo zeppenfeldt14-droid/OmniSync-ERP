@@ -7,6 +7,7 @@ import {
   CheckCircle2, AlertCircle, Info, Send, Save, X, Package,
   Calculator, FileText, Banknote, Percent, Gift, BadgeDollarSign, Tag
 } from 'lucide-react'
+import { useTenant } from '@/lib/tenantContext'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Producto {
@@ -77,6 +78,7 @@ export function NuevoPedidoClient({ userNivel, userAlias, userZona }: Props) {
   const searchParams = useSearchParams()
   const editId = searchParams.get('edit')
   const paramEmpresaId = searchParams.get('empresaId')
+  const { activeTenant, terminology } = useTenant()
 
   // Data
   const [productos, setProductos]   = useState<Producto[]>([])
@@ -853,10 +855,10 @@ export function NuevoPedidoClient({ userNivel, userAlias, userZona }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <ShoppingCart className="text-primary" size={26} />
-            {editId ? 'Editar Pedido' : 'Nuevo Pedido'}
+            {editId ? `Editar ${terminology.pedido}` : `Nuevo ${terminology.pedido}`}
           </h1>
           <p className="text-secondary text-sm mt-1">
-            {editId ? 'Modificando Nota de Pedido' : 'Nota de Pedido'} · NEOSOL
+            {editId ? `Modificando ${terminology.pedido}` : terminology.pedido} · {activeTenant?.nombre || 'OmniSync'}
           </p>
         </div>
         <div className="flex items-center gap-2">

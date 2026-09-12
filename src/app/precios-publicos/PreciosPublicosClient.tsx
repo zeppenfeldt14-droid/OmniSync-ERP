@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Link2, Check, Package, Calendar } from 'lucide-react'
+import { useTenant } from '@/lib/tenantContext'
 
 interface Producto {
   id: number
@@ -32,19 +33,25 @@ interface Props {
   tenantName?: string
 }
 
-const LINEAS: Record<string, string> = {
-  pack_individual: 'Línea Pack Individual',
-  tripack: 'Línea Tripack',
-  minis: 'Línea Minis',
-  snacks: 'Línea Snacks Horneados',
-  otros: 'Otros Productos / Servicios'
+function formatLineaName(lineaKey: string) {
+  if (!lineaKey) return 'General'
+  if (lineaKey === 'pack_individual') return 'Pack Individual'
+  if (lineaKey === 'tripack') return 'Tripack'
+  if (lineaKey === 'minis') return 'Minis'
+  if (lineaKey === 'snacks') return 'Snacks Horneados'
+  return lineaKey
 }
 
-function formatPrice(n: number) {
-  return n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })
-}
+export default function PreciosPublicosClient({ productos = [], priceLists = [], activeListId, tenantName = 'OmniSync' }: Props) {
+  const { activeTenant, terminology } = useTenant()
+  const isUSD = activeTenant?.moneda === 'USD' || activeTenant?.tipoModelo === 'SERVICIOS_DIGITALES'
 
-export default function PreciosPublicosClient({ productos = [], priceLists = [], activeListId, tenantName = 'Golocinas' }: Props) {
+  const formatPrice = (n: number) => {
+    if (isUSD) {
+      return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`
+    }
+    return n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })
+  }
   const [selectedListId, setSelectedListId] = useState<number | null>(() => {
     if (activeListId) return activeListId
     if (priceLists && priceLists.length > 0) return priceLists[0].id
@@ -203,7 +210,7 @@ export default function PreciosPublicosClient({ productos = [], priceLists = [],
         {/* Filtro 2: Selección de Tarifa (Estándar vs Volumen) */}
         <div style={{ marginBottom: '1.5rem' }}>
           <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
-            Volumen de Compra:
+            Escala / Tarifa:
           </label>
           <div style={{
             display: 'grid',
@@ -228,7 +235,7 @@ export default function PreciosPublicosClient({ productos = [], priceLists = [],
                 transition: 'all 0.15s'
               }}
             >
-              Menos de 300 Cajas
+              {terminology.tarifaMinLabel}
             </button>
             <button
               onClick={() => setTarifa('max')}
@@ -244,19 +251,14 @@ export default function PreciosPublicosClient({ productos = [], priceLists = [],
                 transition: 'all 0.15s'
               }}
             >
-              Más de 300 Cajas
+              {terminology.tarifaMaxLabel}
             </button>
           </div>
         </div>
 
         {/* Listado de Productos */}
         {Object.entries(byLinea)
-          .sort(([a], [b]) => {
-            const order = Object.keys(LINEAS)
-            const idxA = order.indexOf(a)
-            const idxB = order.indexOf(b)
-            return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB)
-          })
+          .sort(([a], [b]) => a.localeCompare(b))
           .map(([linea, prods]) => (
           <div key={linea} style={{ marginBottom: '1.5rem' }}>
             {/* Cabecera de línea */}
@@ -268,11 +270,11 @@ export default function PreciosPublicosClient({ productos = [], priceLists = [],
               marginBottom: '0.6rem'
             }}>
               <h2 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#60a5fa', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {LINEAS[linea] || linea}
+                {formatLineaName(linea)}
               </h2>
             </div>
 
-            {/* Listado centrado y optimizado en 1 línea */}
+            {/* Listado centrado y optimizado */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {prods.map((p) => (
                 <div key={p.id} style={{
@@ -291,17 +293,17 @@ export default function PreciosPublicosClient({ productos = [], priceLists = [],
                     {p.nombre}
                   </div>
                   <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
-                    Cód: {p.codigoInterno} · {p.paqPorCaja} paq/caja
+                    Cód: {p.codigoInterno} · {p.paqPorCaja} {terminology.columnaUnidad.toLowerCase()}
                   </div>
                   <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', marginTop: '0.15rem' }}>
                     <div>
-                      <span style={{ fontSize: '0.55rem', color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: '0.05rem', letterSpacing: '0.03em' }}>Paquete</span>
+                      <span style={{ fontSize: '0.55rem', color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: '0.05rem', letterSpacing: '0.03em' }}>{terminology.columnaPrecioUnitario}</span>
                       <span style={{ fontWeight: 700, color: '#34d399', fontSize: '0.88rem' }}>
                         {formatPrice(p.precioPaqueteCalculado)}
                       </span>
                     </div>
                     <div>
-                      <span style={{ fontSize: '0.55rem', color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: '0.05rem', letterSpacing: '0.03em' }}>Caja</span>
+                      <span style={{ fontSize: '0.55rem', color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: '0.05rem', letterSpacing: '0.03em' }}>{terminology.columnaPrecioTotal}</span>
                       <span style={{ fontWeight: 700, color: '#60a5fa', fontSize: '0.88rem' }}>
                         {formatPrice(p.precioCajaCalculado)}
                       </span>
@@ -322,10 +324,10 @@ export default function PreciosPublicosClient({ productos = [], priceLists = [],
         {/* Footer */}
         <div style={{ textAlign: 'center', padding: '1.5rem 0 1rem', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '1.5rem' }}>
           <p style={{ color: '#475569', fontSize: '0.72rem' }}>
-            Precios en ARS · IVA no incluido · Sujeto a cambios
+            {terminology.leyendaIva} · {isUSD ? 'Valores expresados en USD' : 'Precios en ARS'} · Sujeto a cambios
           </p>
           <p style={{ color: '#334155', fontSize: '0.68rem', marginTop: '0.2rem' }}>
-            Neosol S.A. — Sistema CRM Interno
+            {activeTenant?.nombre || tenantName} — Sistema Oficial
           </p>
         </div>
       </div>

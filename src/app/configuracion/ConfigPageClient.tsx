@@ -6,12 +6,14 @@ import dynamic from 'next/dynamic'
 const ConfigZoneMap = dynamic(() => import('@/components/ConfigZoneMap'), { ssr: false })
 import { Upload, Link2, Trash2, Save, Image as ImageIcon, Settings, Users, Power, Edit2, Building, MapPin, Copy } from 'lucide-react'
 import { saveLogo, deleteLogo } from './actions'
+import { useTenant } from '@/lib/tenantContext'
 
 type Props = {
   currentLogo: string | null
 }
 
 export function ConfigPageClient({ currentLogo }: Props) {
+  const { activeTenant, terminology } = useTenant()
   const [userNivel, setUserNivel] = useState<number | null>(null)
   const [userAlias, setUserAlias] = useState<string>('')
   const [userIsNivelTodo, setUserIsNivelTodo] = useState<boolean>(false)
@@ -1196,7 +1198,7 @@ export function ConfigPageClient({ currentLogo }: Props) {
                   />
                 </div>
                 <div className="form-group mb-0">
-                  <label className="form-label text-xs">CSV Tarifa Menor Volumen (&lt; 300 cajas)</label>
+                  <label className="form-label text-xs">CSV {terminology.tarifaMinLabel}</label>
                   <input 
                     id="csv-min"
                     type="file" 
@@ -1206,7 +1208,7 @@ export function ConfigPageClient({ currentLogo }: Props) {
                   />
                 </div>
                 <div className="form-group mb-0">
-                  <label className="form-label text-xs">CSV Tarifa Mayor Volumen (&gt;= 300 cajas)</label>
+                  <label className="form-label text-xs">CSV {terminology.tarifaMaxLabel}</label>
                   <input 
                     id="csv-max"
                     type="file" 
@@ -1219,7 +1221,7 @@ export function ConfigPageClient({ currentLogo }: Props) {
                   <label className="form-label text-xs text-primary">Reglas de Venta para la lista</label>
                   <div className="flex gap-3">
                     <div className="flex-1">
-                      <span className="text-[10px] text-secondary">Minimo de Cajas</span>
+                      <span className="text-[10px] text-secondary">Mínimo de {terminology.unidadMedida}</span>
                       <input 
                         type="number"
                         className="form-input !py-1 text-xs"
@@ -1228,7 +1230,7 @@ export function ConfigPageClient({ currentLogo }: Props) {
                       />
                     </div>
                     <div className="flex-1">
-                      <span className="text-[10px] text-secondary">Limite Lista A (%)</span>
+                      <span className="text-[10px] text-secondary">Límite {terminology.tarifaMaxLabel} (%)</span>
                       <input 
                         type="number"
                         className="form-input !py-1 text-xs"
@@ -1376,7 +1378,7 @@ export function ConfigPageClient({ currentLogo }: Props) {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="form-group mb-0">
-                    <label className="form-label text-[10px]">Compra Mín. (Cajas)</label>
+                    <label className="form-label text-[10px]">Compra Mín. ({terminology.unidadMedida})</label>
                     <input 
                       type="number" 
                       className="form-input text-xs" 
@@ -1386,7 +1388,7 @@ export function ConfigPageClient({ currentLogo }: Props) {
                     />
                   </div>
                   <div className="form-group mb-0">
-                    <label className="form-label text-[10px]">Bonif. (Cajas de Regalo)</label>
+                    <label className="form-label text-[10px]">Bonif. ({terminology.unidadMedida} de Regalo)</label>
                     <input 
                       type="number" 
                       className="form-input text-xs" 
@@ -1477,7 +1479,7 @@ export function ConfigPageClient({ currentLogo }: Props) {
           </div>
           <div className="p-5 flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <label className="form-label text-sm">Mínimo de Cajas para Tarifa por Volumen</label>
+              <label className="form-label text-sm">{terminology.reglaVolumenMinimo}</label>
               <input
                 type="number"
                 min="1"
@@ -1487,7 +1489,7 @@ export function ConfigPageClient({ currentLogo }: Props) {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="form-label text-sm">Límite Lista A sin Volumen (%)</label>
+              <label className="form-label text-sm">Límite {terminology.tarifaMaxLabel} sin Volumen (%)</label>
               <div className="flex items-center gap-3">
                 <input
                   type="number"

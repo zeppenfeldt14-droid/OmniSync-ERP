@@ -203,16 +203,15 @@ export function AppShellClient({
       {/* Sidebar */}
       <aside className={`sidebar ${isMobileMenuOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-header flex flex-col items-center justify-center text-center p-4 border-b border-white/10">
-          <img 
-            src="/omnisync-logo.png" 
-            alt="By OmniSync" 
-            className="h-3.5 object-contain brightness-125 mb-1 opacity-80"
-          />
           {logo ? (
             <img src={logo} alt={activeTenant?.nombre || 'Logo'} style={{ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain', margin: '0 auto' }} />
           ) : (
-            <div className="sidebar-logo text-lg font-black tracking-wider uppercase">
-              {activeTenant?.nombre || 'NEOSOL'}
+            <div className="sidebar-logo text-base font-black tracking-wider uppercase text-white flex items-center gap-2">
+              <div 
+                className="w-2.5 h-2.5 rounded-full shrink-0" 
+                style={{ backgroundColor: activeTenant?.colorPrimario || '#3b82f6', boxShadow: `0 0 10px ${activeTenant?.colorPrimario || '#3b82f6'}` }} 
+              />
+              <span className="truncate max-w-[190px]">{activeTenant?.nombre || 'NEOSOL'}</span>
             </div>
           )}
         </div>
@@ -562,16 +561,6 @@ export function AppShellClient({
             >
               <Menu size={24} />
             </button>
-            <img 
-              src="/omnisync-logo.png" 
-              alt="By OmniSync" 
-              style={{ 
-                height: '15px', 
-                objectFit: 'contain',
-                opacity: 0.6,
-                filter: 'brightness(1.2)'
-              }} 
-            />
             <div className="hidden sm:flex items-center gap-2">
               {user.rol === 'SUPER_ADMIN' && (!user.tenantId || user.tenantId === null) ? (
                 <>

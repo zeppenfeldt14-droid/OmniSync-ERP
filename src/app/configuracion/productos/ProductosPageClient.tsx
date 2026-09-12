@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Package, Plus, Pencil, Trash2, Download, Search,
   Save, X, CheckCircle2, AlertCircle, RefreshCw,
   Printer, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Percent, Link2, Check, FileSpreadsheet
 } from 'lucide-react'
 import BulkPriceSheetSyncModal from '@/components/precios/BulkPriceSheetSyncModal'
+import { useTenant } from '@/lib/tenantContext'
 
 interface Producto {
   id: number
@@ -27,22 +28,26 @@ interface Props {
   userNivel: number
 }
 
-const LINEAS: Record<string, string> = {
-  pack_individual: 'Línea Pack Individual',
-  tripack:         'Línea Tripack',
-  minis:           'Línea Minis',
-  snacks:          'Línea Snacks Horneados',
-}
-
-const LINEAS_OPTS = Object.entries(LINEAS)
 const IVA = 0.21
 
 const EMPTY_FORM = {
-  codigoInterno: '', nombre: '', linea: 'pack_individual',
-  precioPaquete: '', paqPorCaja: '', precioCaja: '',
+  codigoInterno: '', nombre: '', linea: '',
+  precioPaquete: '', paqPorCaja: '1', precioCaja: '',
+}
+
+export function formatLineaName(lineaKey: string) {
+  if (!lineaKey) return 'General'
+  if (lineaKey === 'pack_individual') return 'Pack Individual'
+  if (lineaKey === 'tripack') return 'Tripack'
+  if (lineaKey === 'minis') return 'Minis'
+  if (lineaKey === 'snacks') return 'Snacks Horneados'
+  return lineaKey
 }
 
 export function ProductosPageClient({ userNivel }: Props) {
+  const { activeTenant, terminology } = useTenant()
+  const isUSD = activeTenant?.moneda === 'USD' || activeTenant?.tipoModelo === 'SERVICIOS_DIGITALES'
+
   const [productos, setProductos] = useState<Producto[]>([])
   const [loading, setLoading]     = useState(true)
   const [seeding, setSeeding]     = useState(false)
@@ -84,8 +89,20 @@ export function ProductosPageClient({ userNivel }: Props) {
 
   const printRef = useRef<HTMLDivElement>(null)
 
-  const fmt = (n: number) =>
-    n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })
+  const fmt = useCallback((n: number) => {
+    if (isUSD) {
+      return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`
+    }
+    return n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })
+  }, [isUSD])
+
+  const lineasDisponibles = useMemo(() => {
+    const set = new Set<string>()
+    productos.forEach(p => {
+      if (p.linea && p.linea.trim()) set.add(p.linea.trim())
+    })
+    return Array.from(set)
+  }, [productos])
 
   const getProductPrices = useCallback((p: Producto) => {
     const selectedList = priceLists.find(l => l.id === selectedListId)
@@ -337,8 +354,8 @@ export function ProductosPageClient({ userNivel }: Props) {
       }, {} as Record<string, Producto[]>)
 
     const selectedList = priceLists.find(l => l.id === selectedListId)
-    const listLabel = selectedList?.nombre || 'Mayo 2026'
-    const tarifaLabel = tarifaVer === 'min' ? 'Menos de 300 Cajas (Estándar)' : 'Más de 300 Cajas (Volumen)'
+    const listLabel = selectedList?.nombre || 'Tarifario Oficial'
+    const tarifaLabel = tarifaVer === 'min' ? terminology.tarifaMinLabel : terminology.tarifaMaxLabel
 
     const tableRows = (prods: Producto[]) =>
       prods.map(p => {
@@ -357,12 +374,12 @@ export function ProductosPageClient({ userNivel }: Props) {
 
     const sectionsHTML = Object.entries(productosPorLinea).map(([linea, prods]) => `
       <div class="section">
-        <div class="section-header">${LINEAS[linea] || linea}</div>
+        <div class="section-header">${formatLineaName(linea)}</div>
         <table>
           <thead>
             <tr>
-              <th>Código</th><th>Descripción</th><th>Paq/Caja</th>
-              <th>Precio Paquete</th><th>Precio Caja</th><th>Total c/IVA</th>
+              <th>Código</th><th>Descripción</th><th>${terminology.columnaUnidad}</th>
+              <th>${terminology.columnaPrecioUnitario}</th><th>${terminology.columnaPrecioTotal}</th><th>Total c/IVA</th>
             </tr>
           </thead>
           <tbody>${tableRows(prods)}</tbody>
@@ -375,7 +392,7 @@ export function ProductosPageClient({ userNivel }: Props) {
       <html lang="es">
       <head>
         <meta charset="UTF-8"/>
-        <title>Lista de Precios NEOSOL — ${listLabel} [${tarifaLabel}] — ${today}</title>
+        <title>${activeTenant?.nombre || 'OmniSync'} — Lista de Precios — ${listLabel} [${tarifaLabel}] — ${today}</title>
         <style>
           * { margin:0; padding:0; box-sizing:border-box; }
           body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a2e; font-size: 10px; padding: 20px; }
@@ -400,8 +417,8 @@ export function ProductosPageClient({ userNivel }: Props) {
       <body>
         <div class="header">
           <div>
-            <div class="brand">NEOSOL<span>Lista de Precios Oficial · ${listLabel} · ${tarifaLabel}</span></div>
-            <p class="note">* Precios sin IVA. Total c/IVA incluye el 21% sobre precio de caja.</p>
+            <div class="brand">${activeTenant?.nombre || 'OmniSync'}<span>Lista de Precios Oficial · ${listLabel} · ${tarifaLabel}</span></div>
+            <p class="note">* ${terminology.leyendaIva} · ${isUSD ? 'Valores en USD' : 'Precios en ARS'}</p>
           </div>
           <div class="date">
             Vigente al<br/>
@@ -411,7 +428,7 @@ export function ProductosPageClient({ userNivel }: Props) {
         </div>
         ${sectionsHTML}
         <div class="footer">
-          NEOSOL · Lista de precios generada el ${today} · Uso interno
+          ${activeTenant?.nombre || 'OmniSync'} · Lista de precios generada el ${today} · Uso interno
         </div>
       </body>
       </html>
@@ -613,7 +630,7 @@ export function ProductosPageClient({ userNivel }: Props) {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] uppercase font-black text-secondary tracking-wider text-left md:text-right">Volumen del Pedido</label>
+          <label className="text-[10px] uppercase font-black text-secondary tracking-wider text-left md:text-right">Escala / Tarifa por Volumen</label>
           <div className="flex gap-2 bg-black/30 p-1 rounded-xl border border-white/5">
             <button
               onClick={() => setTarifaVer('min')}
@@ -623,7 +640,7 @@ export function ProductosPageClient({ userNivel }: Props) {
                   : 'text-secondary hover:text-white'
               }`}
             >
-              Lista B (- 300 cajas)
+              {terminology.tarifaMinLabel}
             </button>
             <button
               onClick={() => setTarifaVer('max')}
@@ -633,7 +650,7 @@ export function ProductosPageClient({ userNivel }: Props) {
                   : 'text-secondary hover:text-white'
               }`}
             >
-              Lista A (+ 300 cajas)
+              {terminology.tarifaMaxLabel}
             </button>
           </div>
         </div>
@@ -659,13 +676,13 @@ export function ProductosPageClient({ userNivel }: Props) {
           >
             Todas
           </button>
-          {LINEAS_OPTS.map(([key, label]) => (
+          {lineasDisponibles.map((lineaKey) => (
             <button
-              key={key}
-              onClick={() => setFiltroLinea(key)}
-              className={`btn-toggle ${filtroLinea === key ? 'active' : ''}`}
+              key={lineaKey}
+              onClick={() => setFiltroLinea(lineaKey)}
+              className={`btn-toggle ${filtroLinea === lineaKey ? 'active' : ''}`}
             >
-              {label.replace('Línea ', '')}
+              {formatLineaName(lineaKey)}
             </button>
           ))}
         </div>
@@ -685,35 +702,30 @@ export function ProductosPageClient({ userNivel }: Props) {
       {loading || seeding ? (
         <div className="flex items-center justify-center py-20 gap-3">
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-secondary text-sm">{seeding ? 'Cargando catálogo en la base de datos...' : 'Cargando productos...'}</span>
+          <span className="text-secondary text-sm">{seeding ? 'Cargando catálogo en la base de datos...' : 'Cargando catálogo...'}</span>
         </div>
       ) : filtered.length === 0 ? (
         <div className="glass-panel card border border-white/5 p-16 text-center">
           <Package size={40} className="text-white/10 mx-auto mb-3" />
           <p className="text-secondary font-semibold">No se encontraron productos</p>
           {userNivel === 1 && productos.length === 0 && (
-            <p className="text-white/30 text-xs mt-2">Usá el botón &ldquo;Cargar Catálogo&rdquo; para importar los productos del Excel</p>
+            <p className="text-white/30 text-xs mt-2">Usá el botón &ldquo;Cargar Catálogo&rdquo; para importar los productos iniciales</p>
           )}
         </div>
       ) : (
         Object.entries(byLinea)
-          .sort(([a], [b]) => {
-            const order = Object.keys(LINEAS)
-            const idxA = order.indexOf(a)
-            const idxB = order.indexOf(b)
-            return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB)
-          })
+          .sort(([a], [b]) => a.localeCompare(b))
           .map(([linea, prods]) => (
           <div key={linea} className="glass-panel card border border-white/5 overflow-hidden">
             {/* Line header */}
             <div className="px-5 py-3 bg-primary/5 border-b border-primary/10 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-primary" />
-                <span className="text-white font-bold text-sm">{LINEAS[linea] || linea}</span>
-                <span className="text-secondary text-xs">({prods.length} productos)</span>
+                <span className="text-white font-bold text-sm">{formatLineaName(linea)}</span>
+                <span className="text-secondary text-xs">({prods.length} {prods.length === 1 ? terminology.producto.toLowerCase() : terminology.productos.toLowerCase()})</span>
               </div>
               <span className="text-secondary text-xs hidden md:block">
-                Precio sin IVA · Total c/IVA incluye 21%
+                {terminology.leyendaIva} · {isUSD ? 'Valores en USD' : 'Precios en ARS'}
               </span>
             </div>
 
@@ -742,17 +754,17 @@ export function ProductosPageClient({ userNivel }: Props) {
                       
                       <div className="grid grid-cols-2 gap-2 mb-3">
                         <div className="bg-white/5 rounded-lg p-2 flex flex-col justify-center items-center">
-                          <div className="text-[10px] text-secondary uppercase font-bold tracking-wider mb-1">Paq/Caja</div>
+                          <div className="text-[10px] text-secondary uppercase font-bold tracking-wider mb-1">{terminology.columnaUnidad}</div>
                           <div className="text-white font-semibold text-xs">{p.paqPorCaja}</div>
                         </div>
                         <div className="bg-white/5 rounded-lg p-2 flex flex-col justify-center items-center">
-                          <div className="text-[10px] text-secondary uppercase font-bold tracking-wider mb-1">Precio Paq</div>
+                          <div className="text-[10px] text-secondary uppercase font-bold tracking-wider mb-1">{terminology.columnaPrecioUnitario}</div>
                           <div className="text-white font-semibold text-xs">{fmt(precioPaquete)}</div>
                         </div>
                       </div>
                       
                       <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex flex-col justify-center items-center">
-                        <div className="text-[10px] text-primary uppercase font-black tracking-wider mb-1">Total Caja c/IVA</div>
+                        <div className="text-[10px] text-primary uppercase font-black tracking-wider mb-1">{terminology.columnaPrecioTotal}</div>
                         <div className="text-white font-black text-lg leading-none">{fmt(precioCaja)}</div>
                       </div>
 
@@ -792,9 +804,9 @@ export function ProductosPageClient({ userNivel }: Props) {
                     <tr className="border-b border-white/5 text-left">
                       <th className="px-4 py-3 text-[10px] font-black uppercase text-secondary tracking-wider whitespace-nowrap">Cód. Interno</th>
                       <th className="px-4 py-3 text-[10px] font-black uppercase text-secondary tracking-wider">Descripción</th>
-                      <th className="px-4 py-3 text-[10px] font-black uppercase text-secondary tracking-wider text-center">Paq / Caja</th>
-                      <th className="px-4 py-3 text-[10px] font-black uppercase text-secondary tracking-wider text-right">Precio Paq</th>
-                      <th className="px-4 py-3 text-[10px] font-black uppercase text-primary tracking-wider text-right bg-primary/5">Total Caja c/IVA</th>
+                      <th className="px-4 py-3 text-[10px] font-black uppercase text-secondary tracking-wider text-center">{terminology.columnaUnidad}</th>
+                      <th className="px-4 py-3 text-[10px] font-black uppercase text-secondary tracking-wider text-right">{terminology.columnaPrecioUnitario}</th>
+                      <th className="px-4 py-3 text-[10px] font-black uppercase text-primary tracking-wider text-right bg-primary/5">{terminology.columnaPrecioTotal}</th>
                       {userNivel === 1 && (
                         <>
                           <th className="px-4 py-3 text-[10px] font-black uppercase text-secondary tracking-wider text-center">Estado</th>
@@ -855,7 +867,7 @@ export function ProductosPageClient({ userNivel }: Props) {
                   <tfoot>
                     <tr className="border-t border-white/10 bg-white/[0.01]">
                       <td colSpan={userNivel === 1 ? 7 : 5} className="px-4 py-2 text-[10px] text-secondary text-right">
-                        IVA: 21% sobre precio de caja · Precios en ARS
+                        {terminology.leyendaIva} · {isUSD ? 'Valores expresados en USD' : 'Precios en ARS'}
                       </td>
                     </tr>
                   </tfoot>
@@ -873,7 +885,7 @@ export function ProductosPageClient({ userNivel }: Props) {
             <div className="flex items-center justify-between border-b border-white/5 p-6 shrink-0">
               <h3 className="font-black text-white flex items-center gap-2">
                 <Package size={18} className="text-primary" />
-                {modal === 'crear' ? 'Nuevo Producto' : 'Editar Producto'}
+                {modal === 'crear' ? `Nuevo ${terminology.producto}` : `Editar ${terminology.producto}`}
               </h3>
               <button onClick={() => setModal(null)} className="btn-action w-8 h-8">
                 <X size={18} />
@@ -888,21 +900,25 @@ export function ProductosPageClient({ userNivel }: Props) {
                     type="text"
                     value={form.codigoInterno}
                     onChange={e => handleFormChange('codigoInterno', e.target.value)}
-                    placeholder="Ej: 33001"
+                    placeholder="Ej: SRV-01 / 33001"
                     className="form-input bg-black/40 border border-white/10 rounded-xl text-sm"
                   />
                 </div>
                 <div className="form-group mb-0">
-                  <label className="form-label text-[10px] uppercase font-black text-secondary">Línea *</label>
-                  <select
+                  <label className="form-label text-[10px] uppercase font-black text-secondary">Línea / Categoría *</label>
+                  <input
+                    type="text"
+                    list="lineas-sugeridas"
                     value={form.linea}
                     onChange={e => handleFormChange('linea', e.target.value)}
+                    placeholder="Ej: Desarrollo Web / Snacks"
                     className="form-input bg-black/40 border border-white/10 rounded-xl text-sm"
-                  >
-                    {LINEAS_OPTS.map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
+                  />
+                  <datalist id="lineas-sugeridas">
+                    {lineasDisponibles.map(l => (
+                      <option key={l} value={l}>{formatLineaName(l)}</option>
                     ))}
-                  </select>
+                  </datalist>
                 </div>
               </div>
 
@@ -912,14 +928,14 @@ export function ProductosPageClient({ userNivel }: Props) {
                   type="text"
                   value={form.nombre}
                   onChange={e => handleFormChange('nombre', e.target.value)}
-                  placeholder="Ej: SANDW. 176 PAQ X 25 GR"
+                  placeholder="Ej: Diseño Web Corporativo"
                   className="form-input bg-black/40 border border-white/10 rounded-xl text-sm"
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="form-group mb-0">
-                  <label className="form-label text-[10px] uppercase font-black text-secondary">Precio Paq. ($)</label>
+                  <label className="form-label text-[10px] uppercase font-black text-secondary truncate">{terminology.columnaPrecioUnitario} ({isUSD ? 'USD' : 'ARS'})</label>
                   <input
                     type="number" step="0.01" min="0"
                     value={form.precioPaquete}
@@ -928,7 +944,7 @@ export function ProductosPageClient({ userNivel }: Props) {
                   />
                 </div>
                 <div className="form-group mb-0">
-                  <label className="form-label text-[10px] uppercase font-black text-secondary">Paq/Caja *</label>
+                  <label className="form-label text-[10px] uppercase font-black text-secondary truncate">{terminology.columnaUnidad} *</label>
                   <input
                     type="number" min="1"
                     value={form.paqPorCaja}
@@ -937,7 +953,7 @@ export function ProductosPageClient({ userNivel }: Props) {
                   />
                 </div>
                 <div className="form-group mb-0">
-                  <label className="form-label text-[10px] uppercase font-black text-secondary">Precio Caja ($) *</label>
+                  <label className="form-label text-[10px] uppercase font-black text-secondary truncate">{terminology.columnaPrecioTotal} ({isUSD ? 'USD' : 'ARS'}) *</label>
                   <input
                     type="number" step="0.01" min="0"
                     value={form.precioCaja}
@@ -959,7 +975,7 @@ export function ProductosPageClient({ userNivel }: Props) {
                     <p className="text-white font-black">{fmt(precioPreview)}</p>
                   </div>
                   <div>
-                    <p className="text-secondary text-[10px] font-black uppercase">Total c/IVA 21%</p>
+                    <p className="text-secondary text-[10px] font-black uppercase">{terminology.columnaPrecioTotal}</p>
                     <p className="text-primary font-black">{fmt(precioPreview * (1 + IVA))}</p>
                   </div>
                 </div>
@@ -1064,8 +1080,8 @@ export function ProductosPageClient({ userNivel }: Props) {
                   onChange={(e: any) => setAumentoTarifaTipo(e.target.value)}
                   className="form-input bg-black/40 border border-white/10 rounded-xl text-sm"
                 >
-                  <option value="ambas">Ambas Tarifas (Estándar y Volumen)</option>
-                  <option value="min">Solo Tarifa Estándar (&lt; 300 cajas)</option>
+                  <option value="ambas">Ambas Tarifas ({terminology.tarifaMinLabel} y {terminology.tarifaMaxLabel})</option>
+                  <option value="min">Solo {terminology.tarifaMinLabel}</option>
                 </select>
               </div>
             </div>

@@ -203,7 +203,7 @@ export default function SuperAdminLayout({
       )}
 
       {/* ── SIDEBAR DESKTOP CÁPSULA ORGÁNICA (CERO ESQUINAS) ── */}
-      <div className="hidden lg:block fixed top-0 bottom-0 left-0 p-3.5 z-50 w-[290px]">
+      <div className="hidden lg:block fixed top-0 bottom-0 left-0 p-3.5 z-40 w-[285px]">
         <aside className="w-full h-full bg-[#0c0e17]/90 backdrop-blur-2xl border border-white/10 rounded-[32px] shadow-2xl flex flex-col overflow-hidden">
           
           {/* Cabecera con Logo By OmniSync Centrado */}
@@ -276,7 +276,7 @@ export default function SuperAdminLayout({
             })}
           </nav>
 
-          {/* Tarjeta de Acción Rápida Inferior ("Centro de Mando / Let's start") */}
+          {/* Tarjeta de Acción Rápida Inferior ("Centro de Mando") */}
           <div className="p-3.5 pt-0 space-y-2.5">
             <div className="p-3.5 rounded-2xl bg-gradient-to-b from-white/[0.04] to-transparent border border-white/5 text-center">
               <span className="text-[11px] font-black text-white block mb-0.5">
@@ -319,8 +319,8 @@ export default function SuperAdminLayout({
       </div>
 
       {/* ── CONTENIDO PRINCIPAL ── */}
-      <main className="flex-1 lg:ml-[290px] min-h-screen min-w-0 w-full lg:w-[calc(100%-290px)] bg-gradient-to-br from-[#05060a] via-[#080b14] to-[#05060a] pt-16 lg:pt-0">
-        <div className="p-4 sm:p-6 lg:p-8 w-full max-w-[1500px] mx-auto">
+      <main className="flex-1 lg:ml-[285px] min-h-screen min-w-0 w-full lg:w-[calc(100%-285px)] bg-gradient-to-br from-[#05060a] via-[#080b14] to-[#05060a] pt-16 lg:pt-0">
+        <div className="p-4 sm:p-6 lg:p-10 w-full max-w-[1500px] mx-auto">
           {children}
         </div>
       </main>
