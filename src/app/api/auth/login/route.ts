@@ -6,7 +6,7 @@ import { verifyPassword, signToken, registrarAccion } from '@/lib/auth'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { alias, password } = body
+    const { alias, password, callbackUrl } = body
 
     if (!alias || !password) {
       return NextResponse.json(
@@ -71,15 +71,19 @@ export async function POST(request: Request) {
     }
     const token = signToken(sessionUser)
 
-    // Save session in cookie
-    const cookieStore = await cookies()
-    cookieStore.set('neosol_session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 24 hours
-      path: '/'
-    })
+    // Save session in Next cookieStore
+    try {
+      const cookieStore = await cookies()
+      cookieStore.set('neosol_session', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24, // 24 hours
+        path: '/'
+      })
+    } catch (e) {
+      // Ignore if called in unsupported context
+    }
 
     // Get IP and UserAgent
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
@@ -97,7 +101,7 @@ export async function POST(request: Request) {
     await prisma.usuario.update({
       where: { id: usuario.id },
       data: {
-        loginCount: usuario.loginCount + 1,
+        loginCount: (usuario.loginCount || 0) + 1,
         connectionLogs: connectionLogs.slice(0, 20)
       }
     })
@@ -112,32 +116,24 @@ export async function POST(request: Request) {
 
     // Determine dynamic landing redirect
     let redirectUrl = '/'
+    let tenantSlugToSet: string | null = null
+
     if (usuario.alias === 'Elarez' || (usuario.nivel === 1 && !usuario.tenantId)) {
       redirectUrl = '/super-admin'
     } else if (usuario.tenant?.slug === 'vinnaty' || usuario.alias === 'vinnaty') {
-      redirectUrl = '/vinnaty'
-      cookieStore.set('omnisync_active_tenant_slug', 'vinnaty', {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 30,
-        sameSite: 'lax'
-      })
+      redirectUrl = callbackUrl && callbackUrl.startsWith('/vinnaty') ? callbackUrl : '/vinnaty'
+      tenantSlugToSet = 'vinnaty'
     } else if (usuario.tenant?.slug === 'golocinas' || usuario.alias === 'admin') {
-      redirectUrl = '/golocinas'
-      cookieStore.set('omnisync_active_tenant_slug', 'golocinas', {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 30,
-        sameSite: 'lax'
-      })
+      redirectUrl = callbackUrl && callbackUrl.startsWith('/golocinas') ? callbackUrl : '/golocinas'
+      tenantSlugToSet = 'golocinas'
     } else if (usuario.tenant?.slug) {
-      redirectUrl = `/${usuario.tenant.slug}`
-      cookieStore.set('omnisync_active_tenant_slug', usuario.tenant.slug, {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 30,
-        sameSite: 'lax'
-      })
+      redirectUrl = callbackUrl && callbackUrl.startsWith(`/${usuario.tenant.slug}`) ? callbackUrl : `/${usuario.tenant.slug}`
+      tenantSlugToSet = usuario.tenant.slug
+    } else if (callbackUrl && !callbackUrl.startsWith('/login')) {
+      redirectUrl = callbackUrl
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       redirectUrl,
       user: {
@@ -154,6 +150,25 @@ export async function POST(request: Request) {
         tenant: usuario.tenant
       }
     })
+
+    // Explicitly set cookie on NextResponse headers to guarantee delivery
+    response.cookies.set('neosol_session', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: '/'
+    })
+
+    if (tenantSlugToSet) {
+      response.cookies.set('omnisync_active_tenant_slug', tenantSlugToSet, {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: 'lax'
+      })
+    }
+
+    return response
   } catch (error: any) {
     console.error('[API Login] Error:', error)
     return NextResponse.json(

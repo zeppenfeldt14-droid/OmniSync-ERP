@@ -9,15 +9,16 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const tenantParam = searchParams.get('tenant')
   const portalParam = searchParams.get('portal')
+  const callbackUrl = searchParams.get('callbackUrl')
 
   const [alias, setAlias] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const isSuperAdminPortal = portalParam === 'super-admin'
-  const isGolocinas = tenantParam === 'golocinas'
-  const isVinnaty = tenantParam === 'vinnaty'
+  const isSuperAdminPortal = portalParam === 'super-admin' || callbackUrl?.includes('super-admin')
+  const isGolocinas = tenantParam === 'golocinas' || callbackUrl?.includes('golocinas')
+  const isVinnaty = tenantParam === 'vinnaty' || callbackUrl?.includes('vinnaty')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,7 +34,7 @@ function LoginForm() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ alias, password })
+        body: JSON.stringify({ alias, password, callbackUrl })
       })
 
       const data = await response.json()
@@ -55,7 +56,8 @@ function LoginForm() {
         localStorage.setItem('user_status_limits', JSON.stringify(data.user.limitesEstado || {}))
         localStorage.setItem('staff_auth', 'true')
 
-        window.location.href = data.redirectUrl || '/'
+        const destination = data.redirectUrl || callbackUrl || '/'
+        window.location.href = destination
       } else {
         setError('Error al procesar el inicio de sesión.')
         setIsLoading(false)

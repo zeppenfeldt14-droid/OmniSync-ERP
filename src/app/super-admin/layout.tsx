@@ -35,6 +35,21 @@ export default function SuperAdminLayout({
   }, [pathname])
 
   useEffect(() => {
+    // Optimistic fast check from storage
+    const cachedRole = typeof window !== 'undefined' ? localStorage.getItem('staff_user_role') : null
+    const cachedLevel = typeof window !== 'undefined' ? localStorage.getItem('user_level') : null
+    const cachedName = typeof window !== 'undefined' ? localStorage.getItem('staff_user') : null
+    const cachedAlias = typeof window !== 'undefined' ? localStorage.getItem('staff_user_alias') : null
+
+    if (cachedLevel === '1' || cachedRole === 'SUPER_ADMIN' || cachedAlias === 'Elarez') {
+      setAdminUser({
+        nombre: cachedName || 'Super Admin',
+        alias: cachedAlias || 'Elarez',
+        rol: 'SUPER_ADMIN'
+      })
+      setLoadingAuth(false)
+    }
+
     fetch('/api/auth/me')
       .then(res => res.ok ? res.json() : null)
       .then(data => {
@@ -42,12 +57,14 @@ export default function SuperAdminLayout({
         if (user && (user.nivel === 1 || user.rol === 'SUPER_ADMIN' || user.role === 'GLOBAL_ADMIN' || user.alias === 'Elarez' || user.alias === 'admin')) {
           setAdminUser(user)
           setLoadingAuth(false)
-        } else {
+        } else if (!cachedLevel || cachedLevel !== '1') {
           router.replace('/login?callbackUrl=/super-admin')
         }
       })
       .catch(() => {
-        router.replace('/login?callbackUrl=/super-admin')
+        if (!cachedLevel || cachedLevel !== '1') {
+          router.replace('/login?callbackUrl=/super-admin')
+        }
       })
   }, [router])
 

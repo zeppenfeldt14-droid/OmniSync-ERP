@@ -535,7 +535,7 @@ export default function LobbyPage() {
 
         {/* SECTION: YOUR WORKSPACES / UNIDADES OPERATIVAS (Active Tenants Directory) */}
         <section id="workspaces" className="py-16 md:py-20 border-t border-slate-800/60 bg-[#0C1017]">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             
             <div className="text-center mb-10">
               <div className="inline-block px-2.5 py-1 rounded bg-orange-500/10 text-orange-400 text-[11px] font-bold uppercase tracking-widest border border-orange-500/20 mb-3">
@@ -695,7 +695,7 @@ export default function LobbyPage() {
 
         {/* SECTION: INFRAESTRUCTURA */}
         <section id="infraestructura" className="py-16 md:py-20 border-t border-slate-800/60 bg-[#0A0D14]">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-12">
               <div className="inline-block px-2.5 py-1 rounded bg-orange-500/10 text-orange-400 text-[11px] font-bold uppercase tracking-widest border border-orange-500/20 mb-3">
                 SEGURIDAD Y ESCALABILIDAD
