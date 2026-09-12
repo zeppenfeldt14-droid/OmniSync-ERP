@@ -7,6 +7,7 @@ const ConfigZoneMap = dynamic(() => import('@/components/ConfigZoneMap'), { ssr:
 import { Upload, Link2, Trash2, Save, Image as ImageIcon, Settings, Users, Power, Edit2, Building, MapPin, Copy } from 'lucide-react'
 import { saveLogo, deleteLogo } from './actions'
 import { useTenant } from '@/lib/tenantContext'
+import { formatImageUrl } from '@/lib/imageUtils'
 
 type Props = {
   currentLogo: string | null
@@ -590,9 +591,11 @@ export function ConfigPageClient({ currentLogo }: Props) {
     setIsSaving(true)
     try {
       if (logoUrl.trim() === '') {
-        await deleteLogo()
+        await deleteLogo(activeTenant?.id)
       } else {
-        await saveLogo(logoUrl)
+        const clean = formatImageUrl(logoUrl)
+        await saveLogo(clean, activeTenant?.id)
+        setLogoUrl(clean)
       }
       alert('Configuración guardada correctamente.')
     } catch (error) {
@@ -608,7 +611,7 @@ export function ConfigPageClient({ currentLogo }: Props) {
     if (confirm('¿Estás seguro de que deseas eliminar el logo?')) {
       setIsSaving(true)
       try {
-        await deleteLogo()
+        await deleteLogo(activeTenant?.id)
         setLogoUrl('')
         alert('Logo eliminado correctamente.')
       } catch (error) {
@@ -798,11 +801,22 @@ export function ConfigPageClient({ currentLogo }: Props) {
 
           <div className="flex-1 flex items-center justify-center bg-black/30 rounded-lg border border-white/5 p-6" style={{ minHeight: '120px' }}>
             {logoUrl ? (
-              <img src={logoUrl} alt="Logo Preview" style={{ maxHeight: '70px', maxWidth: '100%', objectFit: 'contain' }} />
+              <img 
+                src={formatImageUrl(logoUrl)} 
+                alt="Logo Preview" 
+                onError={(e) => {
+                  // Fallback to Google thumbnail endpoint if direct CDN fails
+                  const fileIdMatch = logoUrl.match(/[-\w]{25,}/)
+                  if (fileIdMatch && !e.currentTarget.src.includes('thumbnail')) {
+                    e.currentTarget.src = `https://drive.google.com/thumbnail?id=${fileIdMatch[0]}&sz=w1000`
+                  }
+                }}
+                style={{ maxHeight: '70px', maxWidth: '100%', objectFit: 'contain' }} 
+              />
             ) : (
               <div className="text-center text-secondary flex flex-col items-center gap-2 opacity-50">
                 <ImageIcon size={32} />
-                <span style={{ fontSize: '0.875rem' }}>Logo por defecto (NEOSOL)</span>
+                <span style={{ fontSize: '0.875rem' }}>Logo por defecto ({activeTenant?.nombre || 'OmniSync'})</span>
               </div>
             )}
           </div>

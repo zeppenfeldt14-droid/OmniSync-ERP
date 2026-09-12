@@ -34,11 +34,11 @@ export default function CurrencyToggle() {
             <Globe size={13} className="text-blue-400" />
           )}
           <span className="text-blue-300 font-extrabold tracking-wide">{localCurrency}</span>
+          <span className="text-[10px] text-slate-400 uppercase ml-0.5">
+            Local
+          </span>
         </>
       )}
-      <span className="text-[10px] text-slate-400 uppercase ml-0.5">
-        {isUSDActive ? 'USD' : 'Local'}
-      </span>
     </button>
   )
 }

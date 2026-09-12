@@ -12,6 +12,7 @@ import { NotificationBell } from './mensajes/NotificationBell'
 import TenantSelector from '@/components/TenantSelector'
 import CurrencyToggle from '@/components/CurrencyToggle'
 import { useTenant } from '@/lib/tenantContext'
+import { formatImageUrl } from '@/lib/imageUtils'
 
 interface UserSession {
   id: number
@@ -203,17 +204,33 @@ export function AppShellClient({
       {/* Sidebar */}
       <aside className={`sidebar ${isMobileMenuOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-header flex flex-col items-center justify-center text-center p-4 border-b border-white/10">
-          {logo ? (
-            <img src={logo} alt={activeTenant?.nombre || 'Logo'} style={{ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain', margin: '0 auto' }} />
-          ) : (
-            <div className="sidebar-logo text-base font-black tracking-wider uppercase text-white flex items-center gap-2">
-              <div 
-                className="w-2.5 h-2.5 rounded-full shrink-0" 
-                style={{ backgroundColor: activeTenant?.colorPrimario || '#3b82f6', boxShadow: `0 0 10px ${activeTenant?.colorPrimario || '#3b82f6'}` }} 
+          {(() => {
+            const rawLogo = activeTenant?.logoUrl || logo
+            const directLogo = formatImageUrl(rawLogo)
+            return directLogo ? (
+              <img 
+                src={directLogo} 
+                alt={activeTenant?.nombre || 'Logo'} 
+                onError={(e) => {
+                  const fileIdMatch = rawLogo?.match(/[-\w]{25,}/)
+                  if (fileIdMatch && !e.currentTarget.src.includes('thumbnail')) {
+                    e.currentTarget.src = `https://drive.google.com/thumbnail?id=${fileIdMatch[0]}&sz=w1000`
+                  } else {
+                    e.currentTarget.style.display = 'none'
+                  }
+                }}
+                style={{ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain', margin: '0 auto' }} 
               />
-              <span className="truncate max-w-[190px]">{activeTenant?.nombre || 'NEOSOL'}</span>
-            </div>
-          )}
+            ) : (
+              <div className="sidebar-logo text-base font-black tracking-wider uppercase text-white flex items-center gap-2">
+                <div 
+                  className="w-2.5 h-2.5 rounded-full shrink-0" 
+                  style={{ backgroundColor: activeTenant?.colorPrimario || '#3b82f6', boxShadow: `0 0 10px ${activeTenant?.colorPrimario || '#3b82f6'}` }} 
+                />
+                <span className="truncate max-w-[190px]">{activeTenant?.nombre || 'OmniSync'}</span>
+              </div>
+            )
+          })()}
         </div>
         
         <nav className="sidebar-nav">
