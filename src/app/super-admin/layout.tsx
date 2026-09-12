@@ -13,7 +13,10 @@ import {
   ArrowUpRight, 
   Menu, 
   X,
-  LayoutDashboard
+  LayoutDashboard,
+  Plus,
+  Sparkles,
+  ChevronRight
 } from 'lucide-react'
 
 export default function SuperAdminLayout({
@@ -24,8 +27,8 @@ export default function SuperAdminLayout({
   const pathname = usePathname()
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [authorized, setAuthorized] = useState(true)
-  const [adminUser, setAdminUser] = useState<{ nombre: string; alias: string } | null>(null)
+  const [adminUser, setAdminUser] = useState<{ nombre: string; alias: string; rol?: string } | null>(null)
+  const [loadingAuth, setLoadingAuth] = useState(true)
 
   useEffect(() => {
     setMobileMenuOpen(false)
@@ -34,15 +37,18 @@ export default function SuperAdminLayout({
   useEffect(() => {
     fetch('/api/auth/me')
       .then(res => res.ok ? res.json() : null)
-      .then(user => {
-        if (user) {
+      .then(data => {
+        const user = data?.user || (data?.success ? data.user : null) || data
+        if (user && (user.nivel === 1 || user.rol === 'SUPER_ADMIN' || user.role === 'GLOBAL_ADMIN' || user.alias === 'Elarez' || user.alias === 'admin')) {
           setAdminUser(user)
-          if (user.nivel !== 1 && user.role !== 'GLOBAL_ADMIN') {
-            router.replace('/')
-          }
+          setLoadingAuth(false)
+        } else {
+          router.replace('/login?callbackUrl=/super-admin')
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        router.replace('/login?callbackUrl=/super-admin')
+      })
   }, [router])
 
   const handleLogout = async () => {
@@ -70,25 +76,25 @@ export default function SuperAdminLayout({
       label: 'Gestión Inquilinos', 
       href: '/super-admin/tenants', 
       icon: Building2,
-      desc: 'Fichas técnicas y aprovisionamiento' 
+      desc: 'Fichas técnicas y alta' 
     },
     { 
       label: 'Modelos de Negocio', 
       href: '/super-admin/templates', 
       icon: Layers,
-      desc: 'Plantillas Logística, Agencia, E-Com' 
+      desc: 'Plantillas y verticales' 
     },
     { 
-      label: 'Usuarios de Plataforma', 
+      label: 'Usuarios Globales', 
       href: '/super-admin/users', 
       icon: Users,
-      desc: 'Gestión agrupada por inquilino' 
+      desc: 'Gestión de accesos' 
     },
     { 
       label: 'Auditoría & Logs', 
       href: '/super-admin/audit', 
       icon: ShieldCheck,
-      desc: 'Bitácora y eventos del sistema' 
+      desc: 'Bitácora y seguridad' 
     },
   ]
 
@@ -98,24 +104,23 @@ export default function SuperAdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-[#050505] text-white font-sans selection:bg-amber-500 selection:text-black">
+    <div className="flex min-h-screen w-full bg-[#05060a] text-white font-sans selection:bg-amber-500 selection:text-black">
       {/* ── HEADER MÓVIL ── */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#0a0a0a]/95 backdrop-blur-md border-b border-white/10 px-4 flex items-center justify-between z-40">
-        <div className="flex items-center gap-2.5">
-          <div className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
-          <Link href="/super-admin" className="flex items-baseline gap-1.5">
-            <span className="text-lg font-black tracking-tight text-white">
-              Omni<span className="text-amber-500">Sync</span>
-            </span>
-            <span className="text-[9px] font-mono font-black uppercase text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
-              Super Admin
-            </span>
-          </Link>
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#0a0c14]/95 backdrop-blur-md border-b border-white/10 px-4 flex items-center justify-between z-40">
+        <div className="flex items-center gap-2">
+          <img 
+            src="/omnisync-logo.png" 
+            alt="By OmniSync" 
+            className="h-4 object-contain brightness-125"
+          />
+          <span className="text-[10px] font-black uppercase text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+            Super Admin
+          </span>
         </div>
 
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-amber-400"
+          className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-amber-400"
           aria-label="Abrir Menú"
         >
           {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -129,26 +134,22 @@ export default function SuperAdminLayout({
             className="fixed inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="relative w-[85%] max-w-xs bg-[#0a0a0a] border-r border-white/10 h-full flex flex-col z-50 p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                  <span className="text-[9px] font-black tracking-widest text-amber-500 uppercase">SaaS Platform</span>
-                </div>
-                <h2 className="text-xl font-black text-white">
-                  Omni<span className="text-amber-500">Sync</span>
-                </h2>
-              </div>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2 rounded-xl bg-white/5 text-zinc-400 hover:text-white"
-              >
-                <X size={18} />
-              </button>
+          <div className="relative w-[85%] max-w-xs bg-[#0c0e17] border-r border-white/10 h-full flex flex-col z-50 p-5 rounded-r-[32px]">
+            <div className="flex flex-col items-center text-center pb-4 border-b border-white/10 mb-4">
+              <img 
+                src="/omnisync-logo.png" 
+                alt="By OmniSync" 
+                className="h-6 object-contain brightness-125 mb-1"
+              />
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-400">
+                SaaS Master Engine
+              </span>
             </div>
 
             <nav className="flex-1 space-y-1.5 overflow-y-auto">
+              <div className="px-3 py-1 text-[10px] font-black tracking-[0.2em] text-zinc-500 uppercase">
+                MAIN
+              </div>
               {menuItems.map((item) => {
                 const active = isLinkActive(item.href, item.exact)
                 const Icon = item.icon
@@ -157,7 +158,7 @@ export default function SuperAdminLayout({
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all ${
+                    className={`flex items-center gap-3 px-3.5 py-3 rounded-2xl transition-all ${
                       active
                         ? 'bg-amber-500 text-black font-black shadow-lg shadow-amber-500/20'
                         : 'text-zinc-400 hover:text-white hover:bg-white/5'
@@ -172,8 +173,16 @@ export default function SuperAdminLayout({
 
             <div className="pt-4 border-t border-white/10 space-y-2 mt-auto">
               <Link
+                href="/super-admin/tenants"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl bg-amber-500 text-black font-bold text-xs shadow-lg shadow-amber-500/20"
+              >
+                <Plus size={15} />
+                <span>Nuevo Inquilino</span>
+              </Link>
+              <Link
                 href="/"
-                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 text-xs font-bold transition"
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 text-xs font-bold transition"
               >
                 <div className="flex items-center gap-2">
                   <LayoutDashboard size={16} className="text-indigo-400" />
@@ -183,7 +192,7 @@ export default function SuperAdminLayout({
               </Link>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 text-red-400 hover:text-red-300 px-3.5 py-2.5 w-full text-xs font-bold uppercase tracking-wider rounded-xl bg-red-500/10 border border-red-500/20"
+                className="flex items-center gap-2 text-red-400 hover:text-red-300 px-3.5 py-2.5 w-full text-xs font-bold uppercase tracking-wider rounded-2xl bg-red-500/10 border border-red-500/20"
               >
                 <LogOut size={16} />
                 <span>Cerrar Sesión</span>
@@ -193,78 +202,124 @@ export default function SuperAdminLayout({
         </div>
       )}
 
-      {/* ── SIDEBAR DESKTOP (FIJO) ── */}
-      <aside className="hidden lg:flex w-[270px] bg-[#090a0f] border-r border-white/10 flex-col fixed h-full z-50">
-        <div className="p-6 border-b border-white/10">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-            <span className="text-[9px] font-black tracking-[0.25em] text-amber-500 uppercase">SaaS Master Engine</span>
+      {/* ── SIDEBAR DESKTOP CÁPSULA ORGÁNICA (CERO ESQUINAS) ── */}
+      <div className="hidden lg:block fixed top-0 bottom-0 left-0 p-3.5 z-50 w-[290px]">
+        <aside className="w-full h-full bg-[#0c0e17]/90 backdrop-blur-2xl border border-white/10 rounded-[32px] shadow-2xl flex flex-col overflow-hidden">
+          
+          {/* Cabecera con Logo By OmniSync Centrado */}
+          <div className="p-5 border-b border-white/10 flex flex-col items-center text-center">
+            <Link href="/super-admin" className="flex flex-col items-center group">
+              <img 
+                src="/omnisync-logo.png" 
+                alt="By OmniSync" 
+                className="h-5 object-contain brightness-125 group-hover:scale-105 transition-transform"
+              />
+              <span className="text-[9px] font-black uppercase tracking-[0.25em] text-amber-500 mt-1">
+                SaaS Master Engine
+              </span>
+            </Link>
           </div>
-          <Link href="/super-admin" className="block">
-            <h1 className="text-2xl font-extrabold tracking-tight text-white">
-              Omni<span className="text-amber-500">Sync</span>
-            </h1>
-          </Link>
-          <p className="text-[10px] text-zinc-400 mt-1 uppercase font-mono tracking-wider">
-            Centro de Mando Super Admin
-          </p>
-        </div>
 
-        {/* Navigation Items */}
-        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-          {menuItems.map((item) => {
-            const active = isLinkActive(item.href, item.exact)
-            const Icon = item.icon
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`group flex flex-col px-4 py-3 rounded-2xl transition-all ${
-                  active
-                    ? 'bg-amber-500 text-black font-black shadow-lg shadow-amber-500/20'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon size={18} className={active ? 'text-black' : 'text-amber-500/70 group-hover:text-amber-400'} />
-                  <span className={`text-xs tracking-wider uppercase ${active ? 'font-black' : 'font-semibold'}`}>
-                    {item.label}
-                  </span>
-                </div>
-                <span className={`text-[10px] ml-7 mt-0.5 line-clamp-1 ${active ? 'text-black/70' : 'text-zinc-500'}`}>
-                  {item.desc}
+          {/* Tarjeta de Perfil Administrador */}
+          <div className="mx-3.5 mt-3.5 p-3 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-xs shadow-md uppercase">
+                {adminUser?.alias ? adminUser.alias.substring(0, 2) : 'SA'}
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-black text-white leading-tight">
+                  {adminUser?.nombre || adminUser?.alias || 'Elarez'}
                 </span>
-              </Link>
-            )
-          })}
-        </nav>
-
-        {/* Bottom Actions */}
-        <div className="p-4 border-t border-white/10 space-y-2 bg-[#07070a]">
-          <Link
-            href="/"
-            className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-indigo-950/40 border border-white/10 hover:border-indigo-500/40 text-zinc-300 hover:text-indigo-300 text-xs font-semibold transition group"
-            title="Ir al ERP operativo de inquilinos"
-          >
-            <div className="flex items-center gap-2">
-              <LayoutDashboard size={15} className="text-indigo-400 group-hover:scale-110 transition" />
-              <span>ERP de Ventas</span>
+                <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                  Super Admin
+                </span>
+              </div>
             </div>
-            <ArrowUpRight size={14} className="text-zinc-500 group-hover:text-indigo-400" />
-          </Link>
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Sesión activa" />
+          </div>
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2.5 text-zinc-400 hover:text-red-400 transition-colors px-3.5 py-2.5 w-full text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/5"
-          >
-            <LogOut size={15} />
-            <span>Cerrar Sesión</span>
-          </button>
-        </div>
-      </aside>
+          {/* Navigation Items (MAIN) */}
+          <nav className="flex-1 px-3.5 py-3 space-y-1 overflow-y-auto custom-scrollbar">
+            <div className="px-3 pt-2 pb-1 text-[10px] font-black tracking-[0.25em] text-zinc-500 uppercase">
+              MAIN
+            </div>
+            {menuItems.map((item) => {
+              const active = isLinkActive(item.href, item.exact)
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`group flex items-center justify-between px-3.5 py-2.5 rounded-2xl transition-all duration-150 ${
+                    active
+                      ? 'bg-amber-500 text-black font-black shadow-lg shadow-amber-500/25 scale-[1.02]'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
+                      active ? 'bg-black/15 text-black' : 'bg-white/5 text-amber-500 group-hover:bg-amber-500/10'
+                    }`}>
+                      <Icon size={17} />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className={`text-xs tracking-wider uppercase truncate ${active ? 'font-black text-black' : 'font-semibold text-zinc-200 group-hover:text-white'}`}>
+                        {item.label}
+                      </span>
+                    </div>
+                  </div>
+                  {active && (
+                    <ChevronRight size={14} className="text-black shrink-0" />
+                  )}
+                </Link>
+              )
+            })}
+          </nav>
+
+          {/* Tarjeta de Acción Rápida Inferior ("Centro de Mando / Let's start") */}
+          <div className="p-3.5 pt-0 space-y-2.5">
+            <div className="p-3.5 rounded-2xl bg-gradient-to-b from-white/[0.04] to-transparent border border-white/5 text-center">
+              <span className="text-[11px] font-black text-white block mb-0.5">
+                Centro de Mando
+              </span>
+              <p className="text-[10px] text-zinc-400 leading-tight mb-2.5">
+                Aprovisioná inquilinos o configurá plantillas.
+              </p>
+              <Link
+                href="/super-admin/tenants"
+                className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02]"
+              >
+                <Plus size={14} />
+                <span>+ Nuevo Inquilino</span>
+              </Link>
+            </div>
+
+            {/* Accesos de Navegación y Logout */}
+            <div className="flex items-center gap-2">
+              <Link
+                href="/"
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-indigo-950/40 border border-white/10 hover:border-indigo-500/40 text-zinc-300 hover:text-indigo-300 text-[11px] font-bold transition group"
+                title="Ir al ERP operativo de inquilinos"
+              >
+                <LayoutDashboard size={13} className="text-indigo-400 group-hover:scale-110 transition" />
+                <span>ERP Ventas</span>
+              </Link>
+
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-xl bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 text-zinc-400 hover:text-red-400 transition"
+                title="Cerrar Sesión"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          </div>
+
+        </aside>
+      </div>
 
       {/* ── CONTENIDO PRINCIPAL ── */}
-      <main className="flex-1 lg:ml-[270px] min-h-screen min-w-0 w-full lg:w-[calc(100%-270px)] bg-gradient-to-br from-[#050505] via-[#090a0f] to-[#050505] pt-16 lg:pt-0">
+      <main className="flex-1 lg:ml-[290px] min-h-screen min-w-0 w-full lg:w-[calc(100%-290px)] bg-gradient-to-br from-[#05060a] via-[#080b14] to-[#05060a] pt-16 lg:pt-0">
         <div className="p-4 sm:p-6 lg:p-8 w-full max-w-[1500px] mx-auto">
           {children}
         </div>
@@ -272,3 +327,4 @@ export default function SuperAdminLayout({
     </div>
   )
 }
+

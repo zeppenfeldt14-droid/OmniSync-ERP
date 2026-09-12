@@ -202,11 +202,18 @@ export function AppShellClient({
 
       {/* Sidebar */}
       <aside className={`sidebar ${isMobileMenuOpen ? 'sidebar-open' : ''}`}>
-        <div className="sidebar-header" style={{ padding: logo ? '1.5rem 1rem' : '1.5rem' }}>
+        <div className="sidebar-header flex flex-col items-center justify-center text-center p-4 border-b border-white/10">
+          <img 
+            src="/omnisync-logo.png" 
+            alt="By OmniSync" 
+            className="h-3.5 object-contain brightness-125 mb-1 opacity-80"
+          />
           {logo ? (
-            <img src={logo} alt="Logo" style={{ maxHeight: '55px', maxWidth: '100%', objectFit: 'contain', margin: '0 auto' }} />
+            <img src={logo} alt={activeTenant?.nombre || 'Logo'} style={{ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain', margin: '0 auto' }} />
           ) : (
-            <div className="sidebar-logo">NEOSOL</div>
+            <div className="sidebar-logo text-lg font-black tracking-wider uppercase">
+              {activeTenant?.nombre || 'NEOSOL'}
+            </div>
           )}
         </div>
         

@@ -169,11 +169,7 @@ export default function LobbyPage() {
 
   const handleQuickEnter = (e: React.FormEvent) => {
     e.preventDefault()
-    if (selectedTenantQuick === 'golocinas') {
-      router.push('/golocinas')
-    } else {
-      router.push('/vinnaty')
-    }
+    router.push(`/login?tenant=${selectedTenantQuick}&callbackUrl=/${selectedTenantQuick}`)
   }
 
   const handleOpenProvisionModal = (modelo: ModeloIndustria) => {
@@ -226,8 +222,8 @@ export default function LobbyPage() {
             </div>
 
             <Link
-              href="/super-admin"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white transition-all text-xs font-medium"
+              href="/login?callbackUrl=/super-admin"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white transition-all text-xs font-medium"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-orange-400" />
               <span>Super Admin</span>
@@ -447,14 +443,14 @@ export default function LobbyPage() {
                 {/* Buttons */}
                 <div className="mt-9 flex items-center gap-4">
                   <Link
-                    href="/golocinas"
+                    href="/login?tenant=golocinas&callbackUrl=/golocinas"
                     className="px-6 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition-all"
                   >
                     Entrar a Golocinas
                   </Link>
 
                   <Link
-                    href="/vinnaty"
+                    href="/login?tenant=vinnaty&callbackUrl=/vinnaty"
                     className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 font-semibold text-xs transition-all"
                   >
                     Entrar a Vinnaty
@@ -558,7 +554,7 @@ export default function LobbyPage() {
               
               {/* Card 1: Golocinas */}
               <Link
-                href="/golocinas"
+                href="/login?tenant=golocinas&callbackUrl=/golocinas"
                 className="group flex items-center justify-between h-[88px] max-h-[90px] px-5 bg-[#151C28] hover:bg-[#1A2332] border border-slate-800 hover:border-orange-500/60 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-orange-500/5 hover:scale-[1.01]"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
@@ -588,7 +584,7 @@ export default function LobbyPage() {
 
               {/* Card 2: Vinnaty */}
               <Link
-                href="/vinnaty"
+                href="/login?tenant=vinnaty&callbackUrl=/vinnaty"
                 className="group flex items-center justify-between h-[88px] max-h-[90px] px-5 bg-[#151C28] hover:bg-[#1A2332] border border-slate-800 hover:border-orange-500/60 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-orange-500/5 hover:scale-[1.01]"
               >
                 <div className="flex items-center gap-3.5 min-w-0">

@@ -19,7 +19,7 @@ import {
   MapPin
 } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import SharedPeriodFilter from '@/components/SharedPeriodFilter'
 import { 
@@ -56,6 +56,7 @@ export function InicioPageClient({ data, currentUser, vendedoresDisponibles = []
   const { kpis, recentActivity, charts, heatmap, availableZones, selectedZones } = data
   const router = useRouter()
   const searchParams = useSearchParams()
+  const pathname = usePathname()
 
   // Dropdown UI state
   const [isOpenFilter, setIsOpenFilter] = useState(false)
@@ -110,7 +111,7 @@ export function InicioPageClient({ data, currentUser, vendedoresDisponibles = []
     params.set('period', newPeriod)
     if (currentZonaParam) params.set('zona', currentZonaParam)
     if (currentVendedorParam) params.set('vendedor', currentVendedorParam)
-    router.push(`/?${params.toString()}`)
+    router.push(`${pathname}?${params.toString()}`)
   }
 
   // Handle zone navigation
@@ -133,14 +134,14 @@ export function InicioPageClient({ data, currentUser, vendedoresDisponibles = []
       params.set('zona', newZones.join(','))
     }
     // Note: When changing zones, we don't carry over the vendedor since they might not belong to the new zones
-    router.push(`/?${params.toString()}`)
+    router.push(`${pathname}?${params.toString()}`)
   }
 
   const handleSelectAllZones = () => {
     const params = new URLSearchParams()
     if (currentPeriodParam) params.set('period', currentPeriodParam)
     params.set('zona', 'todas')
-    router.push(`/?${params.toString()}`)
+    router.push(`${pathname}?${params.toString()}`)
     setIsOpenZoneFilter(false)
   }
 
@@ -166,7 +167,7 @@ export function InicioPageClient({ data, currentUser, vendedoresDisponibles = []
       params.set('vendedor', alias)
     }
     
-    router.push(`/?${params.toString()}`)
+    router.push(`${pathname}?${params.toString()}`)
     setIsOpenVendedorFilter(false)
   }
 
