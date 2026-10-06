@@ -46,7 +46,7 @@ export default async function RootLayout({
     console.warn('Layout logoConfig error:', e)
   }
 
-  const cleanPathname = pathname.replace(/^\/([a-z0-9-]+)(?=\/|$)/i, (match, p1) => ['super-admin', 'api', 'login', 'dashboard', 'empresas', 'pedidos', 'ventas', 'cobranzas', 'facturacion', 'usuarios', 'zonas', 'configuracion', 'crm-web', 'mensajes', 'prospeccion-ia', 'leads', 'marketing'].includes(p1) ? match : '') || '/'
+  const cleanPathname = pathname.replace(/^\/([a-z0-9-]+)(?=\/|$)/i, (match, p1) => ['super-admin', 'api', 'login', 'dashboard', 'empresas', 'pedidos', 'ventas', 'cobranzas', 'facturacion', 'usuarios', 'zonas', 'configuracion', 'crm-web', 'mensajes', 'prospeccion-ia', 'leads', 'marketing', 'campanas'].includes(p1) ? match : '') || '/'
 
   const isPublicRoute = 
     pathname === '/' || 
