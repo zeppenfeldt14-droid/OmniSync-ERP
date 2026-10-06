@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   Building2, Plus, Users, MapPin, Layers, RefreshCw, CheckCircle2, 
@@ -33,7 +33,7 @@ interface TenantRecord {
   empresas?: Array<{ id: number; nombre: string; cuit: string | null; telefono: string | null; email: string | null; zona: string | null; estado: string }>
 }
 
-export default function SuperAdminTenantsPage() {
+function SuperAdminTenantsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { setActiveTenant } = useTenant()
@@ -694,3 +694,17 @@ export default function SuperAdminTenantsPage() {
     </div>
   )
 }
+
+export default function SuperAdminTenantsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center py-20 gap-3 text-zinc-400">
+        <RefreshCw size={28} className="animate-spin text-amber-500" />
+        <p className="text-xs font-mono uppercase tracking-widest">Cargando gestión de inquilinos...</p>
+      </div>
+    }>
+      <SuperAdminTenantsContent />
+    </Suspense>
+  )
+}
+

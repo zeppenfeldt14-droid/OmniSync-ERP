@@ -5,11 +5,14 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const sessionCookie = request.cookies.get('neosol_session')
 
+  const segments = pathname.split('/').filter(Boolean)
+  const firstSegment = segments[0]
+
   const RESERVED_ROOT_PATHS = new Set([
     'super-admin', 'api', 'login', 'dashboard', 'empresas', 'pedidos', 'ventas',
     'cobranzas', 'facturacion', 'usuarios', 'zonas', 'configuracion', 'crm-web',
     'mensajes', 'planificador', 'visitas', 'visitas-hoy', 'precios-publicos',
-    'reportes-publicos', 'visitas-hoy-caba', 'favicon.ico'
+    'reportes-publicos', 'visitas-hoy-caba', 'favicon.ico', '_next', 'static'
   ])
 
   const isTenantPrefix = Boolean(firstSegment && !RESERVED_ROOT_PATHS.has(firstSegment) && !firstSegment.includes('.'))
@@ -46,7 +49,9 @@ export function middleware(request: NextRequest) {
 
   // If not authenticated and trying to access a secure path, redirect to login
   if (!sessionCookie && !isPublicPath) {
-    const loginUrl = new URL('/login', request.url)
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    loginUrl.search = ''
     if (isTenantPrefix) {
       loginUrl.searchParams.set('tenant', firstSegment)
     }
@@ -54,13 +59,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Path-based tenant routing: e.g. /golocinas or /vinnaty
+  // Path-based tenant routing: e.g. /golocinas or /ventas-vs or /azuchel
   if (isTenantPrefix) {
     const tenantSlug = firstSegment
     requestHeaders.set('x-tenant-slug', tenantSlug)
 
     // Internal rewritten subpath (e.g. /golocinas -> /dashboard, /golocinas/pedidos -> /pedidos)
-    const rewriteUrl = new URL(subPath + request.nextUrl.search, request.url)
+    const rewriteUrl = request.nextUrl.clone()
+    rewriteUrl.pathname = subPath
 
     const response = NextResponse.rewrite(rewriteUrl, {
       request: {
