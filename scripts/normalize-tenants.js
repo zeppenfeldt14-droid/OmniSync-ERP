@@ -4,10 +4,10 @@ const bcrypt = require('bcryptjs')
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🚀 Iniciando Normalización y Limpieza Multi-Tenant en la Base de Datos...')
+  console.log('🚀 Sincronizando Modelos Maestros y Jerarquías en Neon PostgreSQL...')
 
   // 1. SUPER ADMIN GLOBAL (CENTRO DE MANDO)
-  console.log('\n👑 1. Verificando Super Admin Global...')
+  console.log('\n👑 1. Configurando Super Admin Global...')
   const superPassword = await bcrypt.hash('ElarezMaster2026!', 10)
 
   const superAdmin = await prisma.usuario.upsert({
@@ -34,50 +34,92 @@ async function main() {
       activo: true
     }
   })
-  console.log(`✅ Super Admin configurado: @${superAdmin.alias} (ID: ${superAdmin.id}, tenantId: null)`)
+  console.log(`✅ Super Admin: @${superAdmin.alias} (tenantId: null)`)
 
-  // 2. INQUILINOS MAESTROS
-  console.log('\n🏢 2. Verificando y Sincronizando Inquilinos Maestros...')
-  const tenantsData = [
+  // 2. INQUILINOS CON MODELOS DE 3 NIVELES
+  console.log('\n🏢 2. Sincronizando Inquilinos y Modelos de Negocio...')
+  const tenantsConfig = [
     {
       slug: 'ventas-vs',
       nombre: 'Ventas.VS - Servicios Comerciales & Digitales',
-      descripcion: 'Agencia de marketing digital, desarrollo web y software comercial.',
+      descripcion: 'Agencia de marketing digital, desarrollo web, software a medida, pauta publicitaria y CRM.',
       shortCode: 'VVS',
       colorPrimario: '#7c3aed',
       colorSecundario: '#6d28d9',
       tipoModelo: 'SERVICIOS_DIGITALES',
+      modeloPrincipal: 'MOD-MKT-01',
+      subModelo: 'SUB-MKT-B2B',
+      nicho: 'NICH-MKT-GROWTH',
+      canalesVenta: ['B2B', 'WHATSAPP_CORP', 'EMAIL_PROPOSAL'],
+      bridgeConfig: { eOmniSyncUrl: '', syncToken: '', autoTransplant: false, activeStoreId: 'ventas-vs' },
+      moneda: 'USD',
       defaultPass: 'ventasvs123',
       aliasSuffix: 'ventasvs',
-      domain: 'ventasvs.com'
+      domain: 'ventasvs.com',
+      aiConfig: {
+        nichoId: 'AGENCIA_MARKETING_VENTASVS',
+        nombreAgente: 'Director Comercial Ventas.VS',
+        tono: 'Estratégico, Persuasivo, Orientado a ROI y Alta Conversión',
+        directivaSistema: 'Identificar comercios y empresas sin sitio web o con presencia digital deficiente para ofrecerles páginas web, tiendas online y automatización comercial.',
+        palabrasClave: ['página web', 'tienda online', 'e-commerce', 'redes sociales', 'meta ads', 'google ads', 'crm', 'software a medida'],
+        criteriosICP: { tipo: 'Empresas B2B y Comercios', antiguedadMinima: '1 año', empleadosMinimos: 3 }
+      }
     },
     {
       slug: 'azuchel',
       nombre: 'Azuchel - Regalos & Merchandising Corporativo',
-      descripcion: 'Tienda de regalos personalizados (B2C) y material POP corporativo (B2B).',
+      descripcion: 'Tienda de regalos personalizados (B2C) y producción de material POP, stickers y box de regalos para empresas (B2B).',
       shortCode: 'AZU',
       colorPrimario: '#10b981',
       colorSecundario: '#059669',
       tipoModelo: 'HIBRIDO',
+      modeloPrincipal: 'MOD-REG-01',
+      subModelo: 'SUB-REG-B2B',
+      nicho: 'NICH-REG-CORP',
+      canalesVenta: ['B2C', 'B2B', 'WHATSAPP_MASIVO', 'EMAIL_CATALOGO_PDF'],
+      bridgeConfig: { eOmniSyncUrl: '', syncToken: '', autoTransplant: false, activeStoreId: 'azuchel-regalos' },
+      moneda: 'ARS',
       defaultPass: 'azuchel123',
       aliasSuffix: 'azuchel',
-      domain: 'azuchel.com'
+      domain: 'azuchel.com',
+      aiConfig: {
+        nichoId: 'REGALOS_MERCHANDISING_AZUCHEL',
+        nombreAgente: 'Asesor Corporativo Azuchel',
+        tono: 'Elegante, Creativo, Cálido y Enfocado en Branding de Empresas',
+        directivaSistema: 'Captar empresas, departamentos de RRHH y agencias para ofrecerles material POP, stickers promocionales, regalos de fin de año y kits de onboarding para colaboradores.',
+        palabrasClave: ['regalo corporativo', 'merchandising', 'material pop', 'stickers', 'box de regalo', 'kit de bienvenida', 'onboarding', 'branding'],
+        criteriosICP: { tipo: 'Empresas Medianas y Grandes / RRHH', empleadosMinimos: 15 }
+      }
     },
     {
       slug: 'golocinas',
       nombre: 'Golocinas - Distribución Mayorista & Snacks',
-      descripcion: 'Distribución mayorista de golosinas, chocolates y snacks en terreno.',
+      descripcion: 'Distribución mayorista de golosinas, chocolates, galletas y snacks con ruteo geolocalizado en terreno.',
       shortCode: 'GLC',
       colorPrimario: '#2563eb',
       colorSecundario: '#1d4ed8',
       tipoModelo: 'FISICO_TERRENO',
+      modeloPrincipal: 'MOD-DIST-01',
+      subModelo: 'SUB-DIST-TERRENO',
+      nicho: 'NICH-DIST-GOLOSINAS',
+      canalesVenta: ['TERRENO', 'WHATSAPP_PRECIOS', 'VISITA_PREVENTISTA'],
+      bridgeConfig: { eOmniSyncUrl: '', syncToken: '', autoTransplant: false, activeStoreId: 'golocinas-mayorista' },
+      moneda: 'ARS',
       defaultPass: 'golocinas123',
       aliasSuffix: 'golocinas',
-      domain: 'golocinas.com'
+      domain: 'golocinas.com',
+      aiConfig: {
+        nichoId: 'CONSUMO_MASIVO_GOLOCINAS',
+        nombreAgente: 'Coordinador de Prospección Golocinas',
+        tono: 'Ágil, Comercial, Directo y Enfocado en Precios por Bulto',
+        directivaSistema: 'Geolocalizar comercios minoristas (kioscos, maxikioscos, autoservicios, almacenes) para armar rutas de visitas a preventistas de calle con listas de precios mayoristas.',
+        palabrasClave: ['golosinas', 'chocolates', 'galletitas', 'kiosco', 'mayorista', 'bulto cerrado', 'distribuidora', 'reparto'],
+        criteriosICP: { tipo: 'Comercios minoristas a la calle', ubicacion: 'Zonas 1, 2, 3 y 4' }
+      }
     }
   ]
 
-  for (const t of tenantsData) {
+  for (const t of tenantsConfig) {
     const tenant = await prisma.tenant.upsert({
       where: { slug: t.slug },
       update: {
@@ -87,6 +129,12 @@ async function main() {
         colorPrimario: t.colorPrimario,
         colorSecundario: t.colorSecundario,
         tipoModelo: t.tipoModelo,
+        modeloPrincipal: t.modeloPrincipal,
+        subModelo: t.subModelo,
+        nicho: t.nicho,
+        canalesVenta: t.canalesVenta,
+        bridgeConfig: t.bridgeConfig,
+        moneda: t.moneda,
         activo: true
       },
       create: {
@@ -97,73 +145,46 @@ async function main() {
         colorPrimario: t.colorPrimario,
         colorSecundario: t.colorSecundario,
         tipoModelo: t.tipoModelo,
+        modeloPrincipal: t.modeloPrincipal,
+        subModelo: t.subModelo,
+        nicho: t.nicho,
+        canalesVenta: t.canalesVenta,
+        bridgeConfig: t.bridgeConfig,
+        moneda: t.moneda,
         activo: true
       }
     })
-    console.log(`✅ Inquilino listo: ID ${tenant.id} -> ${tenant.nombre} (/${tenant.slug})`)
+    console.log(`✅ Inquilino listo: ID ${tenant.id} -> ${tenant.nombre} (Modelo: ${tenant.modeloPrincipal})`)
 
-    // Crear/actualizar equipo estándar para cada inquilino
-    const passHash = await bcrypt.hash(t.defaultPass, 10)
-    const equipo = [
-      { alias: `gerente.${t.aliasSuffix}`, nombre: `Gerente General (${t.shortCode})`, email: `gerente@${t.domain}`, rol: 'ADMIN', nivel: 1 },
-      { alias: `supervisor.${t.aliasSuffix}`, nombre: `Supervisor Comercial (${t.shortCode})`, email: `supervisor@${t.domain}`, rol: 'SUPERVISOR', nivel: 2 },
-      { alias: `vendedor1.${t.aliasSuffix}`, nombre: `Vendedor Zona 1 (${t.shortCode})`, email: `z1@${t.domain}`, rol: 'VENDEDOR', nivel: 3, zona: 'Zona 1' },
-      { alias: `vendedor2.${t.aliasSuffix}`, nombre: `Vendedor Zona 2 (${t.shortCode})`, email: `z2@${t.domain}`, rol: 'VENDEDOR', nivel: 3, zona: 'Zona 2' }
-    ]
-
-    for (const usr of equipo) {
-      await prisma.usuario.upsert({
-        where: { alias: usr.alias },
+    // Configuración de Agente IA
+    if (t.aiConfig) {
+      await prisma.agenteIAPromptConfig.upsert({
+        where: { tenantId: tenant.id },
         update: {
-          nombre: usr.nombre,
-          email: usr.email,
-          passwordHash: passHash,
-          rol: usr.rol,
-          nivel: usr.nivel,
-          tenantId: tenant.id,
-          zona: usr.zona || 'Todas',
+          nichoId: t.aiConfig.nichoId,
+          nombreAgente: t.aiConfig.nombreAgente,
+          tono: t.aiConfig.tono,
+          directivaSistema: t.aiConfig.directivaSistema,
+          palabrasClave: t.aiConfig.palabrasClave,
+          criteriosICP: t.aiConfig.criteriosICP,
           activo: true
         },
         create: {
-          alias: usr.alias,
-          nombre: usr.nombre,
-          email: usr.email,
-          passwordHash: passHash,
-          rol: usr.rol,
-          nivel: usr.nivel,
           tenantId: tenant.id,
-          zona: usr.zona || 'Todas',
+          nichoId: t.aiConfig.nichoId,
+          nombreAgente: t.aiConfig.nombreAgente,
+          tono: t.aiConfig.tono,
+          directivaSistema: t.aiConfig.directivaSistema,
+          palabrasClave: t.aiConfig.palabrasClave,
+          criteriosICP: t.aiConfig.criteriosICP,
           activo: true
         }
       })
-      console.log(`   👤 Operador: @${usr.alias} | Clave: ${t.defaultPass} | Rol: ${usr.rol} [Tenant #${tenant.id}]`)
+      console.log(`   🤖 Agente IA listo: ${t.aiConfig.nombreAgente}`)
     }
   }
 
-  // 3. AISLAMIENTO Y LIMPIEZA DE REGISTROS HUÉRFANOS
-  console.log('\n🧹 3. Verificando aislamiento de entidades operativas...')
-  const golocinasTenant = await prisma.tenant.findUnique({ where: { slug: 'golocinas' } })
-  const defaultTenantId = golocinasTenant ? golocinasTenant.id : 1
-
-  const updatedEmpresas = await prisma.empresa.updateMany({
-    where: { tenantId: null },
-    data: { tenantId: defaultTenantId }
-  })
-  console.log(`   📦 Empresas normalizadas: ${updatedEmpresas.count}`)
-
-  const updatedPedidos = await prisma.pedido.updateMany({
-    where: { tenantId: null },
-    data: { tenantId: defaultTenantId }
-  })
-  console.log(`   🛒 Pedidos normalizados: ${updatedPedidos.count}`)
-
-  const updatedProductos = await prisma.producto.updateMany({
-    where: { tenantId: null },
-    data: { tenantId: defaultTenantId }
-  })
-  console.log(`   🏷️ Productos normalizados: ${updatedProductos.count}`)
-
-  console.log('\n✨ ¡Normalización Multi-Tenant completada al 100%!')
+  console.log('\n🎉 ¡Base de datos Neon 100% sincronizada y funcional!')
 }
 
 main()
@@ -171,7 +192,7 @@ main()
     await prisma.$disconnect()
   })
   .catch(async (e) => {
-    console.error('Error durante la normalización:', e)
+    console.error('Error durante la sincronización:', e)
     await prisma.$disconnect()
     process.exit(1)
   })
