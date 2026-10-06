@@ -16,9 +16,64 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const tenantSlug = (tenantParam || (callbackUrl?.match(/^\/([a-z0-9-]+)/)?.[1]))?.toLowerCase()
   const isSuperAdminPortal = portalParam === 'super-admin' || callbackUrl?.includes('super-admin')
-  const isGolocinas = tenantParam === 'golocinas' || callbackUrl?.includes('golocinas')
-  const isVinnaty = tenantParam === 'vinnaty' || callbackUrl?.includes('vinnaty')
+
+  let tenantTitle = 'OMNISYNC ERP'
+  let tenantSubtitle = isSuperAdminPortal ? 'ACCESO DE GOBERNANZA' : 'ACCESO DE OPERADORES'
+  let tenantBadge: { label: string; icon: React.ReactNode; bg: string; border: string; color: string } | null = null
+  let brandColor = isSuperAdminPortal ? '#d97706' : '#ea580c'
+
+  if (isSuperAdminPortal) {
+    tenantTitle = 'SUPER ADMIN OMNISYNC'
+    tenantBadge = {
+      label: 'Portal Super Admin',
+      icon: <ShieldCheck size={14} color="#d97706" />,
+      bg: 'rgba(245, 158, 11, 0.15)',
+      border: '1px solid rgba(245, 158, 11, 0.3)',
+      color: '#b45309'
+    }
+  } else if (tenantSlug === 'ventas-vs' || tenantSlug === 'vinnaty') {
+    tenantTitle = 'VENTAS.VS SERVICIOS'
+    brandColor = '#7c3aed'
+    tenantBadge = {
+      label: 'Unidad Ventas.VS • Agencia & Ventas',
+      icon: <Laptop size={14} color="#9333ea" />,
+      bg: 'rgba(147, 51, 234, 0.12)',
+      border: '1px solid rgba(147, 51, 234, 0.25)',
+      color: '#7e22ce'
+    }
+  } else if (tenantSlug === 'azuchel') {
+    tenantTitle = 'AZUCHEL GOLOSINAS'
+    brandColor = '#10b981'
+    tenantBadge = {
+      label: 'Unidad Azuchel • Distribución & Golosinas',
+      icon: <Truck size={14} color="#10b981" />,
+      bg: 'rgba(16, 185, 129, 0.12)',
+      border: '1px solid rgba(16, 185, 129, 0.25)',
+      color: '#059669'
+    }
+  } else if (tenantSlug === 'golocinas') {
+    tenantTitle = 'GOLOCINAS LOGÍSTICA'
+    brandColor = '#2563eb'
+    tenantBadge = {
+      label: 'Unidad Golocinas • Mayorista',
+      icon: <Truck size={14} color="#2563eb" />,
+      bg: 'rgba(37, 99, 235, 0.12)',
+      border: '1px solid rgba(37, 99, 235, 0.25)',
+      color: '#1d4ed8'
+    }
+  } else if (tenantSlug && tenantSlug !== 'dashboard' && tenantSlug !== 'super-admin' && tenantSlug !== 'login') {
+    tenantTitle = `${tenantSlug.toUpperCase()} ERP`
+    brandColor = '#3b82f6'
+    tenantBadge = {
+      label: `Unidad ${tenantSlug.toUpperCase()}`,
+      icon: <Truck size={14} color="#3b82f6" />,
+      bg: 'rgba(59, 130, 246, 0.12)',
+      border: '1px solid rgba(59, 130, 246, 0.25)',
+      color: '#2563eb'
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -89,66 +144,24 @@ function LoginForm() {
         textAlign: 'center',
       }}>
         {/* Portal / Tenant Specific Badge */}
-        {isSuperAdminPortal && (
+        {tenantBadge && (
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
             padding: '4px 12px',
             borderRadius: '20px',
-            backgroundColor: 'rgba(245, 158, 11, 0.15)',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
-            color: '#b45309',
+            backgroundColor: tenantBadge.bg,
+            border: tenantBadge.border,
+            color: tenantBadge.color,
             fontSize: '11px',
             fontWeight: 800,
             marginBottom: '16px',
             textTransform: 'uppercase',
             letterSpacing: '1px'
           }}>
-            <ShieldCheck size={14} color="#d97706" />
-            <span>Portal Super Admin</span>
-          </div>
-        )}
-
-        {isGolocinas && (
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 12px',
-            borderRadius: '20px',
-            backgroundColor: 'rgba(37, 99, 235, 0.12)',
-            border: '1px solid rgba(37, 99, 235, 0.25)',
-            color: '#1d4ed8',
-            fontSize: '11px',
-            fontWeight: 800,
-            marginBottom: '16px',
-            textTransform: 'uppercase',
-            letterSpacing: '1px'
-          }}>
-            <Truck size={14} color="#2563eb" />
-            <span>Unidad Golocinas • Mayorista</span>
-          </div>
-        )}
-
-        {isVinnaty && (
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 12px',
-            borderRadius: '20px',
-            backgroundColor: 'rgba(147, 51, 234, 0.12)',
-            border: '1px solid rgba(147, 51, 234, 0.25)',
-            color: '#7e22ce',
-            fontSize: '11px',
-            fontWeight: 800,
-            marginBottom: '16px',
-            textTransform: 'uppercase',
-            letterSpacing: '1px'
-          }}>
-            <Laptop size={14} color="#9333ea" />
-            <span>Unidad Vinnaty • Agencia Digital</span>
+            {tenantBadge.icon}
+            <span>{tenantBadge.label}</span>
           </div>
         )}
 
@@ -157,7 +170,7 @@ function LoginForm() {
           width: '60px',
           height: '60px',
           borderRadius: '50%',
-          background: isSuperAdminPortal ? '#d97706' : (isVinnaty ? '#7c3aed' : (isGolocinas ? '#2563eb' : '#ea580c')),
+          background: brandColor,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -177,9 +190,7 @@ function LoginForm() {
           margin: '0 0 4px',
           textTransform: 'uppercase',
         }}>
-          {isSuperAdminPortal 
-            ? 'SUPER ADMIN OMNISYNC' 
-            : (isVinnaty ? 'VINNATY AGENCIA' : (isGolocinas ? 'GOLOCINAS LOGÍSTICA' : 'OMNISYNC ERP'))}
+          {tenantTitle}
         </h1>
         <p style={{
           fontSize: '12px',
@@ -189,7 +200,7 @@ function LoginForm() {
           margin: '0 0 28px',
           textTransform: 'uppercase',
         }}>
-          {isSuperAdminPortal ? 'ACCESO DE GOBERNANZA' : 'ACCESO DE OPERADORES'}
+          {tenantSubtitle}
         </p>
 
         {/* Error message */}

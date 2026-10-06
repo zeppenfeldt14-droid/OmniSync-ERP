@@ -34,10 +34,19 @@ export async function GET(request: Request) {
       }
     }
 
+    const tenantParam = searchParams.get('tenantId')
+    const tenantSlug = request.headers.get('x-tenant-slug')
+    let targetTenantId = session.tenantId || (tenantParam ? parseInt(tenantParam) : null)
+    if (!targetTenantId && tenantSlug) {
+      const t = await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
+      if (t) targetTenantId = t.id
+    }
+
     const pedidos = await prisma.pedido.findMany({
       where: {
         ...zonaFilter,
         ...(estado && estado !== 'todos' ? { estado } : {}),
+        ...(targetTenantId ? { tenantId: targetTenantId } : {}),
       },
       include: {
         empresa: { select: { nombre: true, cuit: true } },
@@ -244,6 +253,7 @@ export async function POST(request: Request) {
             montoIVA,
             montoFinanciera,
             totalGeneral,
+            tenantId: empresa.tenantId || session.tenantId || null,
             detalles: { create: detallesConCalculo },
           },
           include: { detalles: true },

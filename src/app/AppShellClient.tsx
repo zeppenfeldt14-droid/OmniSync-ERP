@@ -236,15 +236,14 @@ export function AppShellClient({
         <nav className="sidebar-nav">
           {/* Módulo Inicio */}
           {(user.nivel === 1 || modules.inicio !== false) && (() => {
-            const tenantSlug = activeTenant?.slug || (user.tenantId === 2 ? 'vinnaty' : 'golocinas')
+            const tenantSlug = activeTenant?.slug || 'golocinas'
             const inicioHref = `/${tenantSlug}`
             const isInicioActive = 
               pathname === '/dashboard' || 
               pathname === `/${tenantSlug}` || 
               pathname === `/${tenantSlug}/` || 
               pathname === `/${tenantSlug}/dashboard` ||
-              pathname === '/golocinas' ||
-              pathname === '/vinnaty'
+              (activeTenant?.slug ? pathname.startsWith(`/${activeTenant.slug}`) && (pathname.split('/').length <= 2 || pathname.endsWith('/dashboard')) : false)
 
             return (
               <Link href={inicioHref} className={`nav-item ${isInicioActive ? 'active' : ''}`}>

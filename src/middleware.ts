@@ -5,9 +5,14 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const sessionCookie = request.cookies.get('neosol_session')
 
-  const segments = pathname.split('/').filter(Boolean)
-  const firstSegment = segments[0]?.toLowerCase()
-  const isTenantPrefix = firstSegment === 'golocinas' || firstSegment === 'vinnaty'
+  const RESERVED_ROOT_PATHS = new Set([
+    'super-admin', 'api', 'login', 'dashboard', 'empresas', 'pedidos', 'ventas',
+    'cobranzas', 'facturacion', 'usuarios', 'zonas', 'configuracion', 'crm-web',
+    'mensajes', 'planificador', 'visitas', 'visitas-hoy', 'precios-publicos',
+    'reportes-publicos', 'visitas-hoy-caba', 'favicon.ico'
+  ])
+
+  const isTenantPrefix = Boolean(firstSegment && !RESERVED_ROOT_PATHS.has(firstSegment) && !firstSegment.includes('.'))
   const subPath = isTenantPrefix 
     ? (segments.slice(1).length === 0 ? '/dashboard' : '/' + segments.slice(1).join('/'))
     : pathname
@@ -42,7 +47,7 @@ export function middleware(request: NextRequest) {
   // If not authenticated and trying to access a secure path, redirect to login
   if (!sessionCookie && !isPublicPath) {
     const loginUrl = new URL('/login', request.url)
-    if (firstSegment === 'golocinas' || firstSegment === 'vinnaty') {
+    if (isTenantPrefix) {
       loginUrl.searchParams.set('tenant', firstSegment)
     }
     loginUrl.searchParams.set('callbackUrl', pathname)

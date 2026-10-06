@@ -118,14 +118,8 @@ export async function POST(request: Request) {
     let redirectUrl = '/'
     let tenantSlugToSet: string | null = null
 
-    if (usuario.alias === 'Elarez' || (usuario.nivel === 1 && !usuario.tenantId)) {
+    if (usuario.alias === 'Elarez' || usuario.alias === 'superadmin' || (usuario.nivel === 1 && !usuario.tenantId)) {
       redirectUrl = '/super-admin'
-    } else if (usuario.tenant?.slug === 'vinnaty' || usuario.alias === 'vinnaty') {
-      redirectUrl = callbackUrl && callbackUrl.startsWith('/vinnaty') ? callbackUrl : '/vinnaty'
-      tenantSlugToSet = 'vinnaty'
-    } else if (usuario.tenant?.slug === 'golocinas' || usuario.alias === 'admin') {
-      redirectUrl = callbackUrl && callbackUrl.startsWith('/golocinas') ? callbackUrl : '/golocinas'
-      tenantSlugToSet = 'golocinas'
     } else if (usuario.tenant?.slug) {
       redirectUrl = callbackUrl && callbackUrl.startsWith(`/${usuario.tenant.slug}`) ? callbackUrl : `/${usuario.tenant.slug}`
       tenantSlugToSet = usuario.tenant.slug

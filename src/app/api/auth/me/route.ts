@@ -10,7 +10,20 @@ export async function GET() {
     }
 
     const usuario = await prisma.usuario.findUnique({
-      where: { id: session.id }
+      where: { id: session.id },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            slug: true,
+            nombre: true,
+            tipoModelo: true,
+            colorPrimario: true,
+            colorSecundario: true,
+            moneda: true
+          }
+        }
+      }
     })
 
     if (!usuario || !usuario.activo) {
@@ -28,6 +41,12 @@ export async function GET() {
         rol: usuario.rol,
         foto: usuario.foto,
         modulos: usuario.modulos,
+        zona: usuario.zona,
+        zonasHabilitadas: usuario.zonasHabilitadas,
+        isNivelTodo: usuario.isNivelTodo,
+        unidadesNegocio: usuario.unidadesNegocio,
+        tenantId: usuario.tenantId,
+        tenant: usuario.tenant,
         mustChangePassword: usuario.mustChangePassword
       }
     })

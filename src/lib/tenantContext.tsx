@@ -54,10 +54,10 @@ const DEFAULT_TENANTS: TenantData[] = [
   },
   {
     id: 2,
-    slug: 'vinnaty',
-    nombre: 'Vinnaty - Agencia de Publicidad & Marketing',
+    slug: 'ventas-vs',
+    nombre: 'Ventas.VS - Servicios Comerciales & Digitales',
     descripcion: 'Servicios de marketing, diseño web, desarrollo de software, KPIs y pauta digital.',
-    shortCode: 'VIN',
+    shortCode: 'VVS',
     colorPrimario: '#7c3aed',
     colorSecundario: '#6d28d9',
     logoUrl: null,
@@ -67,6 +67,23 @@ const DEFAULT_TENANTS: TenantData[] = [
     sheetUltimaSync: null,
     terminologia: AGENCIA_TERMINOLOGY as any,
     configuracion: { permiteAbonos: true, permiteCotizadorWeb: true, diagnosticoPymes: true },
+    activo: true,
+  },
+  {
+    id: 3,
+    slug: 'azuchel',
+    nombre: 'Azuchel',
+    descripcion: 'Venta y distribución mayorista de golosinas y consumo masivo en terreno.',
+    shortCode: 'AZU',
+    colorPrimario: '#10b981',
+    colorSecundario: '#059669',
+    logoUrl: null,
+    tipoModelo: 'FISICO_TERRENO',
+    moneda: 'ARS',
+    sheetUrl: null,
+    sheetUltimaSync: null,
+    terminologia: LOGISTICA_TERMINOLOGY as any,
+    configuracion: { permiteVisitas: true, permiteGeolocalizacion: true, tieneLogistica: true },
     activo: true,
   }
 ]
@@ -92,9 +109,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           let targetSlug: string | null = null
           if (typeof window !== 'undefined') {
             const p = window.location.pathname
-            if (p.startsWith('/vinnaty')) targetSlug = 'vinnaty'
-            else if (p.startsWith('/golocinas')) targetSlug = 'golocinas'
-            else targetSlug = localStorage.getItem('omnisync_active_tenant_slug')
+            const match = p.match(/^\/([a-z0-9-]+)/)
+            const firstSeg = match?.[1]
+            if (firstSeg && firstSeg !== 'dashboard' && firstSeg !== 'super-admin' && firstSeg !== 'login') {
+              targetSlug = firstSeg
+            } else {
+              targetSlug = localStorage.getItem('omnisync_active_tenant_slug')
+            }
           }
           
           const found = data.find((t: TenantData) => t.slug === targetSlug) || data[0]

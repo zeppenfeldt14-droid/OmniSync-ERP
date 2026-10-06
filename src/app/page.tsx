@@ -57,7 +57,7 @@ interface ModeloIndustria {
 
 export default function LobbyPage() {
   const router = useRouter()
-  const [selectedTenantQuick, setSelectedTenantQuick] = useState<'golocinas' | 'vinnaty'>('golocinas')
+  const [selectedTenantQuick, setSelectedTenantQuick] = useState<'golocinas' | 'ventas-vs' | 'azuchel'>('golocinas')
   const [selectedModeloQuick, setSelectedModeloQuick] = useState('distribucion')
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedModel, setSelectedModel] = useState<ModeloIndustria | null>(null)
@@ -347,7 +347,8 @@ export default function LobbyPage() {
                 className="bg-transparent text-sm font-bold text-white focus:outline-none cursor-pointer mt-0.5"
               >
                 <option value="golocinas" className="bg-slate-900 text-white">Golocinas (Consumo Masivo)</option>
-                <option value="vinnaty" className="bg-slate-900 text-white">Vinnaty (Servicios Digitales)</option>
+                <option value="ventas-vs" className="bg-slate-900 text-white">Ventas.VS (Servicios Comerciales)</option>
+                <option value="azuchel" className="bg-slate-900 text-white">Azuchel (Consumo Masivo)</option>
               </select>
             </div>
 
@@ -549,65 +550,98 @@ export default function LobbyPage() {
               </p>
             </div>
 
-            {/* Compact Cards (88px Height) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto">
+            {/* Compact Cards (3 Columns) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-6xl mx-auto">
               
               {/* Card 1: Golocinas */}
               <Link
                 href="/login?tenant=golocinas&callbackUrl=/golocinas"
-                className="group flex items-center justify-between h-[88px] max-h-[90px] px-5 bg-[#151C28] hover:bg-[#1A2332] border border-slate-800 hover:border-orange-500/60 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-orange-500/5 hover:scale-[1.01]"
+                className="group flex flex-col justify-between p-5 bg-[#151C28] hover:bg-[#1A2332] border border-slate-800 hover:border-blue-500/60 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/5 hover:scale-[1.01]"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-11 h-11 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="w-11 h-11 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 group-hover:scale-105 transition-transform">
                     <Truck className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-white text-lg tracking-tight group-hover:text-orange-300 transition-colors truncate">
+                      <span className="font-extrabold text-white text-lg tracking-tight group-hover:text-blue-300 transition-colors truncate">
                         Golocinas
                       </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-950/50 text-orange-300 border border-orange-800/40 shrink-0">
-                        Consumo Masivo
-                      </span>
                     </div>
-                    <p className="text-slate-400 text-xs truncate mt-0.5">
-                      Preventa en calle, 4 zonas de ruteo y cobranzas
-                    </p>
+                    <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-950/50 text-blue-300 border border-blue-800/40">
+                      Distribución Mayorista
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-xs font-bold text-orange-400 group-hover:text-orange-300 shrink-0 pl-3">
-                  <span className="hidden sm:inline">Entrar al Panel</span>
+                <p className="text-slate-400 text-xs mt-3 line-clamp-2">
+                  Preventa en calle, ruteo geolocalizado en 4 zonas y cobranzas en mano.
+                </p>
+
+                <div className="flex items-center gap-1.5 text-xs font-bold text-blue-400 group-hover:text-blue-300 mt-4 pt-3 border-t border-slate-800/60">
+                  <span>Entrar a Golocinas</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </Link>
 
-              {/* Card 2: Vinnaty */}
+              {/* Card 2: Ventas.VS */}
               <Link
-                href="/login?tenant=vinnaty&callbackUrl=/vinnaty"
-                className="group flex items-center justify-between h-[88px] max-h-[90px] px-5 bg-[#151C28] hover:bg-[#1A2332] border border-slate-800 hover:border-orange-500/60 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-orange-500/5 hover:scale-[1.01]"
+                href="/login?tenant=ventas-vs&callbackUrl=/ventas-vs"
+                className="group flex flex-col justify-between p-5 bg-[#151C28] hover:bg-[#1A2332] border border-slate-800 hover:border-purple-500/60 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-purple-500/5 hover:scale-[1.01]"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-11 h-11 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0 group-hover:scale-105 transition-transform">
                     <Laptop className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-white text-lg tracking-tight group-hover:text-orange-300 transition-colors truncate">
-                        Vinnaty
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-950/50 text-orange-300 border border-orange-800/40 shrink-0">
-                        Servicios Digitales
+                      <span className="font-extrabold text-white text-lg tracking-tight group-hover:text-purple-300 transition-colors truncate">
+                        Ventas.VS
                       </span>
                     </div>
-                    <p className="text-slate-400 text-xs truncate mt-0.5">
-                      Agencia digital, retainers recurrentes y cotizador
-                    </p>
+                    <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-950/50 text-purple-300 border border-purple-800/40">
+                      Servicios Comerciales
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-xs font-bold text-orange-400 group-hover:text-orange-300 shrink-0 pl-3">
-                  <span className="hidden sm:inline">Entrar al Panel</span>
+                <p className="text-slate-400 text-xs mt-3 line-clamp-2">
+                  Agencia digital, retainers y abonos mensuales, servicios y cotizaciones web.
+                </p>
+
+                <div className="flex items-center gap-1.5 text-xs font-bold text-purple-400 group-hover:text-purple-300 mt-4 pt-3 border-t border-slate-800/60">
+                  <span>Entrar a Ventas.VS</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* Card 3: Azuchel */}
+              <Link
+                href="/login?tenant=azuchel&callbackUrl=/azuchel"
+                className="group flex flex-col justify-between p-5 bg-[#151C28] hover:bg-[#1A2332] border border-slate-800 hover:border-emerald-500/60 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/5 hover:scale-[1.01]"
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-11 h-11 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-white text-lg tracking-tight group-hover:text-emerald-300 transition-colors truncate">
+                        Azuchel
+                      </span>
+                    </div>
+                    <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-950/50 text-emerald-300 border border-emerald-800/40">
+                      Consumo Masivo
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-slate-400 text-xs mt-3 line-clamp-2">
+                  Distribución y preventa de golosinas en terreno, ruteo por zonas y cartera B2B.
+                </p>
+
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 group-hover:text-emerald-300 mt-4 pt-3 border-t border-slate-800/60">
+                  <span>Entrar a Azuchel</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </Link>

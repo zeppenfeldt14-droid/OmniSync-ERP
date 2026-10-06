@@ -33,10 +33,19 @@ export async function GET(request: Request) {
       }
     }
 
+    const tenantParam = searchParams.get('tenantId')
+    const tenantSlug = request.headers.get('x-tenant-slug')
+    let targetTenantId = session.tenantId || (tenantParam ? parseInt(tenantParam) : null)
+    if (!targetTenantId && tenantSlug) {
+      const t = await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
+      if (t) targetTenantId = t.id
+    }
+
     const cobranzas = await prisma.cobranza.findMany({
       where: {
         ...zonaFilter,
         ...(estado && estado !== 'todos' ? { estado } : {}),
+        ...(targetTenantId ? { pedido: { tenantId: targetTenantId } } : {}),
       },
       include: {
         pedido: {

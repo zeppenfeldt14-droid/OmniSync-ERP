@@ -121,8 +121,11 @@ export default function TenantSelector() {
                         document.cookie = `omnisync_active_tenant_slug=${t.slug}; path=/; max-age=2592000`
                         const p = window.location.pathname
                         if (!p.startsWith('/super-admin') && !p.startsWith('/login')) {
-                          const sub = p.replace(/^\/(golocinas|vinnaty)/, '') || '/'
-                          window.location.href = `/${t.slug}${sub === '/' ? '' : sub}`
+                          const currentTenantSlug = activeTenant?.slug
+                          const sub = (currentTenantSlug && p.startsWith(`/${currentTenantSlug}`))
+                            ? p.substring(currentTenantSlug.length + 1) || '/'
+                            : p.replace(/^\/(golocinas|ventas-vs|azuchel|vinnaty)/, '') || '/'
+                          window.location.href = `/${t.slug}${sub === '/' ? '' : (sub.startsWith('/') ? sub : '/' + sub)}`
                         }
                       }
                     }}
