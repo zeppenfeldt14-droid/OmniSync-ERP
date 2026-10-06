@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { 
   LayoutDashboard, Users, Map as MapIcon, FileText, Settings, LogOut, ShieldCheck, 
   ChevronDown, ChevronRight, Plus, Globe, X, ShoppingCart, TrendingUp, Banknote, 
-  Package, Home, Menu, MessageSquare, Laptop, Building2, Sparkles
+  Package, Home, Menu, MessageSquare, Laptop, Building2, Sparkles, Megaphone
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -203,7 +203,7 @@ export function AppShellClient({
 
       {/* Sidebar */}
       <aside className={`sidebar ${isMobileMenuOpen ? 'sidebar-open' : ''}`}>
-        <div className="sidebar-header flex flex-col items-center justify-center text-center p-4 border-b border-white/10">
+        <div className="sidebar-header flex flex-col items-center justify-center text-center p-3 sm:p-4 border-b border-white/10 min-h-[90px]">
           {(() => {
             const rawLogo = activeTenant?.logoUrl || logo
             const directLogo = formatImageUrl(rawLogo)
@@ -219,12 +219,13 @@ export function AppShellClient({
                     e.currentTarget.style.display = 'none'
                   }
                 }}
-                style={{ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain', margin: '0 auto' }} 
+                style={{ maxHeight: '80px', maxWidth: '100%', width: 'auto', objectFit: 'contain', margin: '0 auto' }} 
+                className="transition-all duration-200"
               />
             ) : (
               <div className="sidebar-logo text-base font-black tracking-wider uppercase text-white flex items-center gap-2">
                 <div 
-                  className="w-2.5 h-2.5 rounded-full shrink-0" 
+                  className="w-3 h-3 rounded-full shrink-0" 
                   style={{ backgroundColor: activeTenant?.colorPrimario || '#3b82f6', boxShadow: `0 0 10px ${activeTenant?.colorPrimario || '#3b82f6'}` }} 
                 />
                 <span className="truncate max-w-[190px]">{activeTenant?.nombre || 'OmniSync'}</span>
@@ -259,15 +260,29 @@ export function AppShellClient({
             <span className="font-bold text-white uppercase tracking-wider text-xs">Mensajes</span>
           </Link>
 
-          {/* Granja de Prospección IA (Niveles 1 y 2) */}
+          {/* MÓDULO DE MARKETING & PROSPECCIÓN IA (Niveles 1 y 2) */}
           {user.nivel < 3 && (
-            <Link href="/prospeccion-ia" className={`nav-item ${isLinkActive('/prospeccion-ia') ? 'active' : ''}`}>
-              <Sparkles className="nav-icon text-amber-400" />
-              <span className="font-bold text-amber-300 uppercase tracking-wider text-xs truncate flex items-center justify-between w-full">
-                <span>Granja Leads IA</span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">IA</span>
-              </span>
-            </Link>
+            <div className="flex flex-col gap-1 my-1">
+              <div className="px-3 py-1 text-[10px] font-black uppercase text-amber-400/90 tracking-widest border-b border-white/5 flex items-center justify-between">
+                <span>Marketing & Prospección</span>
+                <Sparkles size={12} className="text-amber-400" />
+              </div>
+
+              {/* Centro de Marketing & Campañas */}
+              <Link href="/marketing" className={`nav-item ${isLinkActive('/marketing') ? 'active' : ''}`}>
+                <Megaphone className="nav-icon text-amber-400" />
+                <span className="font-bold text-white uppercase tracking-wider text-xs">Módulo Marketing</span>
+              </Link>
+
+              {/* Granja de Prospección IA */}
+              <Link href="/prospeccion-ia" className={`nav-item ${isLinkActive('/prospeccion-ia') ? 'active' : ''}`}>
+                <Sparkles className="nav-icon text-amber-400" />
+                <span className="font-bold text-amber-300 uppercase tracking-wider text-xs truncate flex items-center justify-between w-full">
+                  <span>Granja Leads IA</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">IA</span>
+                </span>
+              </Link>
+            </div>
           )}
 
           {/* Empresas / Clientes Global (Niveles 1 y 2) */}

@@ -799,7 +799,7 @@ export function ConfigPageClient({ currentLogo }: Props) {
             <p className="card-subtitle mb-4">Así es como se lucirá en la barra lateral del sistema.</p>
           </div>
 
-          <div className="flex-1 flex items-center justify-center bg-black/30 rounded-lg border border-white/5 p-6" style={{ minHeight: '120px' }}>
+          <div className="flex-1 flex items-center justify-center bg-black/30 rounded-lg border border-white/5 p-6" style={{ minHeight: '160px' }}>
             {logoUrl ? (
               <img 
                 src={formatImageUrl(logoUrl)} 
@@ -811,7 +811,7 @@ export function ConfigPageClient({ currentLogo }: Props) {
                     e.currentTarget.src = `https://drive.google.com/thumbnail?id=${fileIdMatch[0]}&sz=w1000`
                   }
                 }}
-                style={{ maxHeight: '70px', maxWidth: '100%', objectFit: 'contain' }} 
+                style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain' }} 
               />
             ) : (
               <div className="text-center text-secondary flex flex-col items-center gap-2 opacity-50">

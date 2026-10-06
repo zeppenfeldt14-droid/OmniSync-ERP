@@ -5,24 +5,24 @@
 
 export interface RawLeadData {
   empresa: string
-  contacto?: string
-  cargo?: string
-  telefono?: string
-  whatsapp?: string
-  email?: string
-  sitioWeb?: string
-  instagram?: string
-  facebook?: string
-  googleMapsUrl?: string
-  direccion?: string
-  latitud?: number
-  longitud?: number
-  zona?: string
-  rubro?: string
-  nicho?: string
-  canalInteres?: string
-  fuente?: string
-  notas?: string
+  contacto?: string | null
+  cargo?: string | null
+  telefono?: string | null
+  whatsapp?: string | null
+  email?: string | null
+  sitioWeb?: string | null
+  instagram?: string | null
+  facebook?: string | null
+  googleMapsUrl?: string | null
+  direccion?: string | null
+  latitud?: number | null
+  longitud?: number | null
+  zona?: string | null
+  rubro?: string | null
+  nicho?: string | null
+  canalInteres?: string | null
+  fuente?: string | null
+  notas?: string | null
 }
 
 export interface ValidatedLeadResult {

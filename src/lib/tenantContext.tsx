@@ -13,6 +13,10 @@ export interface TenantData {
   colorSecundario: string
   logoUrl: string | null
   tipoModelo: 'FISICO_TERRENO' | 'SERVICIOS_DIGITALES' | 'HIBRIDO'
+  modeloPrincipal?: string | null
+  subModelo?: string | null
+  nicho?: string | null
+  canalesVenta?: any
   moneda: string
   sheetUrl: string | null
   sheetUltimaSync: string | null
