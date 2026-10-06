@@ -8,7 +8,7 @@ async function main() {
 
   // 1. SUPER ADMIN GLOBAL (CENTRO DE MANDO)
   console.log('\n👑 1. Configurando Super Admin Global...')
-  const superPassword = await bcrypt.hash('ElarezMaster2026!', 10)
+  const superPassword = await bcrypt.hash('OmniSync2026!', 10)
 
   const superAdmin = await prisma.usuario.upsert({
     where: { alias: 'Elarez' },
