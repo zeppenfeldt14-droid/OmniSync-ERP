@@ -44,11 +44,19 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-pathname', pathname)
+  // Extraer y validar el payload del token JWT en el Edge
+  let tokenPayload: any = null
+  if (sessionCookie?.value) {
+    try {
+      const payloadBase64 = sessionCookie.value.split('.')[1]
+      if (payloadBase64) {
+        tokenPayload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')))
+      }
+    } catch (e) {}
+  }
 
   // If not authenticated and trying to access a secure path, redirect to login
-  if (!sessionCookie && !isPublicPath) {
+  if (!tokenPayload && !isPublicPath) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     loginUrl.search = ''
@@ -59,12 +67,48 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Path-based tenant routing: e.g. /golocinas or /ventas-vs or /azuchel
+  const isSuperAdmin = tokenPayload?.rol === 'SUPER_ADMIN' || (tokenPayload?.nivel === 1 && !tokenPayload?.tenantId)
+  const isSuperAdminPath = pathname.startsWith('/super-admin') || pathname.startsWith('/api/super-admin')
+
+  // 1. Bloqueo estricto: Operadores de inquilino no pueden acceder a /super-admin
+  if (tokenPayload && !isSuperAdmin && isSuperAdminPath) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Acceso denegado. Se requiere Super Administrador Global.' }, { status: 403 })
+    }
+    const tenantTarget = tokenPayload.tenantSlug ? `/${tokenPayload.tenantSlug}/dashboard` : '/dashboard'
+    return NextResponse.redirect(new URL(tenantTarget, request.url))
+  }
+
+  // 2. Aislamiento estricto de Inquilino: Un usuario de Tienda A no puede acceder a Tienda B
+  if (tokenPayload && !isSuperAdmin && isTenantPrefix) {
+    const requestedTenant = firstSegment.toLowerCase().trim()
+    const userTenant = (tokenPayload.tenantSlug || '').toLowerCase().trim()
+
+    // Manejo de alias si aplica
+    const isVentasAlias = (requestedTenant === 'ventas-vs' && userTenant === 'ventas-vs') || 
+                         (requestedTenant === 'ventas.vs' && userTenant === 'ventas-vs') ||
+                         (requestedTenant === 'ventas' && userTenant === 'ventas-vs')
+
+    if (userTenant && requestedTenant !== userTenant && !isVentasAlias) {
+      // Redirigir inmediatamente a su propio panel sin contaminar datos
+      const correctUrl = new URL(`/${userTenant}${subPath}`, request.url)
+      return NextResponse.redirect(correctUrl)
+    }
+  }
+
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', pathname)
+
+  // Inyectar el tenant activo en los headers de la petición
+  if (isTenantPrefix) {
+    requestHeaders.set('x-tenant-slug', firstSegment)
+  } else if (tokenPayload?.tenantSlug) {
+    requestHeaders.set('x-tenant-slug', tokenPayload.tenantSlug)
+  }
+
+  // Path-based tenant routing rewrite
   if (isTenantPrefix) {
     const tenantSlug = firstSegment
-    requestHeaders.set('x-tenant-slug', tenantSlug)
-
-    // Internal rewritten subpath (e.g. /golocinas -> /dashboard, /golocinas/pedidos -> /pedidos)
     const rewriteUrl = request.nextUrl.clone()
     rewriteUrl.pathname = subPath
 
@@ -79,12 +123,6 @@ export function middleware(request: NextRequest) {
       sameSite: 'lax',
     })
     return response
-  }
-
-  // If not in a path prefix, preserve active tenant from cookie or header
-  const cookieTenant = request.cookies.get('omnisync_active_tenant_slug')?.value
-  if (cookieTenant) {
-    requestHeaders.set('x-tenant-slug', cookieTenant)
   }
 
   return NextResponse.next({

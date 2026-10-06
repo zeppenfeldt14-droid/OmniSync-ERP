@@ -302,7 +302,7 @@ async function main() {
         alias: `gerente.${tConf.aliasSuffix}`,
         nombre: `Gerente General (${tConf.shortCode})`,
         email: `gerente@${tConf.domain}`,
-        rol: 'SUPER_ADMIN',
+        rol: 'ADMIN',
         nivel: 1,
         zona: 'Zona 1,Zona 2,Zona 3,Zona 4',
         zonasHabilitadas: ['Zona 1', 'Zona 2', 'Zona 3', 'Zona 4'],

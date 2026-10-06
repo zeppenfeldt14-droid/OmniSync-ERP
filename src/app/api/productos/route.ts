@@ -1,37 +1,30 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser } from '@/lib/auth'
+import { getAuthenticatedTenant, authErrorResponse } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-// GET: Listar productos activos (filtrados opcionalmente por inquilino)
+// GET: Listar productos activos del inquilino autenticado
 export async function GET(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
+    const { session, tenantId } = await getAuthenticatedTenant(request)
 
-    const { searchParams } = new URL(request.url)
-    const tenantIdParam = searchParams.get('tenantId')
-    const targetTenantId = tenantIdParam ? parseInt(tenantIdParam) : (session.tenantId || null)
-
-    const where: any = { activo: true }
-    if (targetTenantId) {
-      where.tenantId = targetTenantId
-    }
-
-    // Find active price list (vigenteDesde <= hoy)
+    // Find active price list (vigenteDesde <= hoy) for this tenant
     const activeList = await prisma.listaPrecio.findFirst({
       where: {
+        tenantId,
         activa: true,
-        vigenteDesde: { lte: new Date() },
-        tenantId: targetTenantId || undefined
+        vigenteDesde: { lte: new Date() }
       },
       orderBy: { vigenteDesde: 'desc' },
       include: { precios: true }
     })
 
     const productos = await prisma.producto.findMany({
-      where,
+      where: {
+        tenantId, // Scoping estricto al inquilino
+        activo: true
+      },
       orderBy: [{ linea: 'asc' }, { nombre: 'asc' }],
     })
 
@@ -50,45 +43,52 @@ export async function GET(request: Request) {
 
     return NextResponse.json(mapped)
   } catch (error: any) {
-    console.error('[API GET Productos]', error)
-    return NextResponse.json({ error: 'Error al listar productos.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
-// POST: Crear producto (Nivel 1 only)
+// POST: Crear producto en el inquilino (Nivel 1 o Super Admin)
 export async function POST(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!session || session.nivel !== 1)
+    const { session, tenantId } = await getAuthenticatedTenant(request)
+    if (session.nivel > 2 && session.rol !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Acceso denegado.' }, { status: 403 })
-
-    const body = await request.json()
-    const { codigoInterno, nombre, linea, precioPaquete, paqPorCaja, precioCaja, tipo, tenantId } = body
-
-    if (!codigoInterno || !nombre) {
-      return NextResponse.json({ error: 'Faltan campos requeridos.' }, { status: 400 })
     }
 
-    const targetTenantId = tenantId ? parseInt(String(tenantId)) : (session.tenantId || null)
+    const body = await request.json()
+    const { codigoInterno, nombre, linea, precioPaquete, paqPorCaja, precioCaja, tipo } = body
+
+    if (!codigoInterno || !nombre) {
+      return NextResponse.json({ error: 'Faltan campos requeridos (código interno y nombre).' }, { status: 400 })
+    }
+
+    // Validar duplicado en este inquilino
+    const existing = await prisma.producto.findFirst({
+      where: {
+        tenantId,
+        codigoInterno: codigoInterno.trim()
+      }
+    })
+    if (existing) {
+      return NextResponse.json({ error: 'El código de producto ya existe para este inquilino.' }, { status: 400 })
+    }
 
     const producto = await prisma.producto.create({
       data: { 
-        codigoInterno, 
-        nombre, 
+        codigoInterno: codigoInterno.trim(), 
+        nombre: nombre.trim(), 
         linea: linea || null, 
         tipo: tipo || 'PRODUCTO',
         precioPaquete: Number(precioPaquete || 0), 
         paqPorCaja: Number(paqPorCaja || 1), 
         precioCaja: Number(precioCaja || precioPaquete || 0),
         precioUnitario: Number(precioPaquete || precioCaja || 0),
-        tenantId: targetTenantId
+        tenantId // Forzado al inquilino autenticado
       },
     })
 
     return NextResponse.json({ success: true, producto })
   } catch (error: any) {
-    if (error.code === 'P2002')
-      return NextResponse.json({ error: 'El código de producto ya existe.' }, { status: 400 })
-    return NextResponse.json({ error: 'Error al crear el producto.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }

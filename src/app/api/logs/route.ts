@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser } from '@/lib/auth'
+import { getSessionUser, authErrorResponse } from '@/lib/auth'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
@@ -15,18 +17,28 @@ export async function GET(request: Request) {
     // Build query conditions
     const where: any = {}
 
-    // Security scope: Level 2 and 3 can only see their own logs
-    if (session.nivel !== 1) {
+    // Security scope por inquilino y nivel
+    if (session.tenantId) {
+      const tenantUsers = await prisma.usuario.findMany({
+        where: { tenantId: session.tenantId },
+        select: { id: true }
+      })
+      const tenantUserIds = tenantUsers.map(u => u.id)
+
+      if (session.nivel > 1) {
+        where.usuarioId = session.id
+      } else {
+        where.usuarioId = { in: tenantUserIds }
+      }
+    } else if (session.nivel > 1) {
       where.usuarioId = session.id
     }
 
     if (type === 'audit') {
-      // Management actions
       where.tipoAccion = {
         notIn: ['LOGIN', 'LOGOUT', 'HEARTBEAT', 'FIN_JORNADA', 'AUSENCIA_COMIDA', 'AUSENCIA_BANO', 'AUSENCIA_GESTION', 'AUSENCIA_CURSO']
       }
     } else if (type === 'connection') {
-      // Connection actions
       where.tipoAccion = {
         in: ['LOGIN', 'LOGOUT', 'HEARTBEAT', 'FIN_JORNADA', 'AUSENCIA_COMIDA', 'AUSENCIA_BANO', 'AUSENCIA_GESTION', 'AUSENCIA_CURSO']
       }
@@ -35,10 +47,9 @@ export async function GET(request: Request) {
     const logs = await prisma.logBitacora.findMany({
       where,
       orderBy: { creadoEn: 'desc' },
-      take: 1000 // Cap to prevent huge responses
+      take: 1000
     })
 
-    // Map fields to match what the frontend expects
     const formattedLogs = logs.map(l => ({
       id: l.id,
       user_id: l.usuarioId,
@@ -51,7 +62,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json(formattedLogs)
   } catch (error: any) {
-    console.error('[API GET Logs] Error:', error)
-    return NextResponse.json({ error: 'Error al cargar bitácora.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }

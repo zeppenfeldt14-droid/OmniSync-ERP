@@ -67,7 +67,8 @@ export async function POST(request: Request) {
       zonasHabilitadas: usuario.zonasHabilitadas,
       unidadesNegocio: (usuario.unidadesNegocio as string[]) || [],
       isNivelTodo: usuario.isNivelTodo,
-      tenantId: usuario.tenantId
+      tenantId: usuario.tenantId,
+      tenantSlug: usuario.tenant?.slug || null
     }
     const token = signToken(sessionUser)
 

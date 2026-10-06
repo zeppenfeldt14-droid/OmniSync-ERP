@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser, registrarAccion } from '@/lib/auth'
+import { getAuthenticatedTenant, registrarAccion, authErrorResponse } from '@/lib/auth'
 
-// ─── GET: Listar pedidos (filtrado por zona/nivel) ───────────────────────────
+export const dynamic = 'force-dynamic'
+
+// ─── GET: Listar pedidos (filtrado por tenant/zona/nivel) ─────────────────────
 export async function GET(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
+    const { session, tenantId } = await getAuthenticatedTenant(request)
 
     const { searchParams } = new URL(request.url)
     const zona = searchParams.get('zona')
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
           : JSON.parse(session.zonasHabilitadas || '[]')
         zonaFilter = zona && zona !== 'todas'
           ? { zona }
-          : { zona: { in: habilitadas } }
+          : (habilitadas.length > 0 ? { zona: { in: habilitadas } } : {})
       } else if (zona && zona !== 'todas') {
         zonaFilter = { zona }
       }
@@ -34,22 +35,14 @@ export async function GET(request: Request) {
       }
     }
 
-    const tenantParam = searchParams.get('tenantId')
-    const tenantSlug = request.headers.get('x-tenant-slug')
-    let targetTenantId = session.tenantId || (tenantParam ? parseInt(tenantParam) : null)
-    if (!targetTenantId && tenantSlug) {
-      const t = await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
-      if (t) targetTenantId = t.id
-    }
-
     const pedidos = await prisma.pedido.findMany({
       where: {
+        tenantId, // Forzado: aislamiento absoluto de pedidos por inquilino
         ...zonaFilter,
         ...(estado && estado !== 'todos' ? { estado } : {}),
-        ...(targetTenantId ? { tenantId: targetTenantId } : {}),
       },
       include: {
-        empresa: { select: { nombre: true, cuit: true } },
+        empresa: { select: { id: true, nombre: true, cuit: true, zona: true } },
         detalles: { include: { producto: true } },
       },
       orderBy: { creadoEn: 'desc' },
@@ -57,16 +50,14 @@ export async function GET(request: Request) {
 
     return NextResponse.json(pedidos)
   } catch (error: any) {
-    console.error('[API GET Pedidos]', error)
-    return NextResponse.json({ error: 'Error al listar pedidos.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
-// ─── POST: Crear nuevo pedido ────────────────────────────────────────────────
+// ─── POST: Crear nuevo pedido en el inquilino autenticado ────────────────────
 export async function POST(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
+    const { session, tenantId } = await getAuthenticatedTenant(request)
 
     const body = await request.json()
     const {
@@ -91,21 +82,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Empresa y al menos un producto son requeridos.' }, { status: 400 })
     }
 
-    // Verify the company exists and is active
-    const empresa = await prisma.empresa.findUnique({ where: { id: empresaId } })
-    if (!empresa) return NextResponse.json({ error: 'Empresa no encontrada.' }, { status: 404 })
+    // Verify the company belongs to the authenticated tenant
+    const empresa = await prisma.empresa.findFirst({
+      where: { 
+        id: Number(empresaId),
+        tenantId 
+      } 
+    })
+    if (!empresa) {
+      return NextResponse.json({ error: 'Empresa no encontrada en este inquilino.' }, { status: 404 })
+    }
 
-    // Find the requested price list or fallback to the latest active one
+    // Find the requested price list or fallback to the latest active one for this tenant
     let activeList = null
     if (listaPrecioId) {
-      activeList = await prisma.listaPrecio.findUnique({
-        where: { id: listaPrecioId },
+      activeList = await prisma.listaPrecio.findFirst({
+        where: { id: Number(listaPrecioId), tenantId },
         include: { precios: true }
       })
     }
     if (!activeList) {
       activeList = await prisma.listaPrecio.findFirst({
         where: {
+          tenantId,
           activa: true,
           vigenteDesde: { lte: new Date() }
         },
@@ -120,9 +119,17 @@ export async function POST(request: Request) {
     const MINIMO_CAJAS = activeList?.minimoCajas ?? 300
     const LIMITE_LISTA_A = activeList?.limiteListaA ?? 60
 
-    // Fetch the products related to detailsnapshots
-    const productoIds = detalles.map((d: any) => d.productoId)
-    const productos = await prisma.producto.findMany({ where: { id: { in: productoIds } } })
+    // Fetch the products related to detailsnapshots - STRICT TENANT ISOLATION
+    const productoIds = detalles.map((d: any) => Number(d.productoId))
+    const productos = await prisma.producto.findMany({ 
+      where: { 
+        id: { in: productoIds },
+        tenantId 
+      } 
+    })
+    if (productos.length !== productoIds.length) {
+      return NextResponse.json({ error: 'Uno o más productos no pertenecen a este inquilino.' }, { status: 400 })
+    }
     const productoMap = Object.fromEntries(productos.map(p => [p.id, p]))
 
     // Check volume tier
@@ -180,12 +187,10 @@ export async function POST(request: Request) {
     })
 
     const totalProductos = detalles.length
-    let flag60Rule = false
     if (totalCajas < MINIMO_CAJAS) {
       const porcentajeListaA = (countListaA / totalProductos) * 100
       if (porcentajeListaA >= LIMITE_LISTA_A) {
         tienePrecioNegociado = true
-        flag60Rule = true
       } else if (porcentajeListaA > 0) {
         tieneTarifaNegociada = true
       }
@@ -205,24 +210,27 @@ export async function POST(request: Request) {
     const totalGeneral = subtotalSinIVA + montoIVA + montoFinanciera
 
     // Auto-generate order number with retry to avoid race conditions
-    const currentYear = new Date().getFullYear();
-    let nextNumber = 1;
+    const currentYear = new Date().getFullYear()
+    let nextNumber = 1
     
-    // Find highest order number for current year
+    // Find highest order number for current year in this tenant
     const lastPedido = await prisma.pedido.findFirst({
-      where: { numeroPedido: { startsWith: `PED-${currentYear}-` } },
+      where: { 
+        tenantId,
+        numeroPedido: { startsWith: `PED-${currentYear}-` } 
+      },
       orderBy: { id: 'desc' }
-    });
+    })
     
     if (lastPedido) {
-      const parts = lastPedido.numeroPedido.split('-');
+      const parts = lastPedido.numeroPedido.split('-')
       if (parts.length === 3) {
-        nextNumber = parseInt(parts[2], 10) + 1;
+        nextNumber = parseInt(parts[2], 10) + 1
       }
     }
 
-    let pedido = null;
-    let attempts = 0;
+    let pedido = null
+    let attempts = 0
     
     while (!pedido && attempts < 5) {
       const numeroPedido = `PED-${currentYear}-${String(nextNumber).padStart(4, '0')}`
@@ -231,7 +239,7 @@ export async function POST(request: Request) {
         pedido = await prisma.pedido.create({
           data: {
             numeroPedido,
-            empresaId,
+            empresaId: Number(empresaId),
             vendedorId: session.id,
             vendedorAlias: session.alias,
             zona: empresa.zona || session.zona || 'Sin Zona',
@@ -253,30 +261,34 @@ export async function POST(request: Request) {
             montoIVA,
             montoFinanciera,
             totalGeneral,
-            tenantId: empresa.tenantId || session.tenantId || null,
+            tenantId, // Forzado: asociado únicamente al inquilino autenticado
             detalles: { create: detallesConCalculo },
           },
           include: { detalles: true },
         })
       } catch (err: any) {
         if (err.code === 'P2002') { // Unique constraint failed
-          nextNumber++;
-          attempts++;
+          nextNumber++
+          attempts++
         } else {
-          throw err;
+          throw err
         }
       }
     }
 
     if (!pedido) {
-      throw new Error('No se pudo generar un número de pedido único. Intente nuevamente.');
+      throw new Error('No se pudo generar un número de pedido único. Intente nuevamente.')
     }
 
-    await registrarAccion(session.id, session.alias, 'CREATE_PEDIDO', `Pedido ${pedido.numeroPedido} creado para empresa ID ${empresaId}`)
+    await registrarAccion(
+      session.id, 
+      session.alias, 
+      'CREATE_PEDIDO', 
+      `Pedido ${pedido.numeroPedido} creado para empresa ID ${empresaId} [Tenant #${tenantId}]`
+    )
 
     return NextResponse.json({ success: true, pedido })
   } catch (error: any) {
-    console.error('[API POST Pedidos]', error)
-    return NextResponse.json({ error: error.message || 'Error al crear el pedido.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }

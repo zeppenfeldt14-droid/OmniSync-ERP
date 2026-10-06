@@ -1,29 +1,33 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser, registrarAccion } from '@/lib/auth'
+import { getAuthenticatedTenant, registrarAccion, authErrorResponse } from '@/lib/auth'
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { tenantId } = await getAuthenticatedTenant(request)
+
     const { id } = await params
     const empresaId = parseInt(id)
     if (isNaN(empresaId)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
 
-    const empresa = await prisma.empresa.findUnique({
-      where: { id: empresaId },
+    const empresa = await prisma.empresa.findFirst({
+      where: { 
+        id: empresaId,
+        tenantId // Scoping estricto al inquilino
+      },
       include: {
         visitas: { orderBy: { fecha: 'desc' }, take: 10 }
       }
     })
 
-    if (!empresa) return NextResponse.json({ error: 'Empresa no encontrada' }, { status: 404 })
+    if (!empresa) return NextResponse.json({ error: 'Empresa no encontrada en este inquilino' }, { status: 404 })
 
     return NextResponse.json(empresa)
   } catch (error: any) {
-    console.error('[API GET Empresa ID]', error)
-    return NextResponse.json({ error: 'Error al obtener empresa' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
@@ -32,8 +36,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const { session, tenantId } = await getAuthenticatedTenant(request)
 
     const { id } = await params
     const empresaId = parseInt(id)
@@ -42,8 +45,13 @@ export async function PUT(
     const body = await request.json()
     const { zona, subZona, vendedorAsignado } = body
 
-    const currentEmpresa = await prisma.empresa.findUnique({ where: { id: empresaId } })
-    if (!currentEmpresa) return NextResponse.json({ error: 'Empresa no encontrada' }, { status: 404 })
+    const currentEmpresa = await prisma.empresa.findFirst({ 
+      where: { 
+        id: empresaId,
+        tenantId // Scoping estricto al inquilino
+      } 
+    })
+    if (!currentEmpresa) return NextResponse.json({ error: 'Empresa no encontrada en este inquilino' }, { status: 404 })
 
     const updateData: any = {}
 
@@ -58,9 +66,10 @@ export async function PUT(
       updateData.zona = normalizedZona
       updateData.subZona = subZona || 'SIN ASIGNAR'
 
-      // Auto-assign salesperson of the new zone
+      // Auto-assign salesperson of the new zone within this tenant
       const vendorZona = await prisma.usuario.findFirst({
         where: {
+          tenantId,
           zona: { equals: normalizedZona, mode: 'insensitive' },
           activo: true,
           NOT: { alias: 'admin' }
@@ -71,11 +80,7 @@ export async function PUT(
       }
     } else {
       if (subZona !== undefined) updateData.subZona = subZona
-      
-      // If user is level 2 and tries to change vendor but KEEP the same zone, they can do it.
-      if (vendedorAsignado !== undefined) {
-        updateData.vendedorAsignado = vendedorAsignado
-      }
+      if (vendedorAsignado !== undefined) updateData.vendedorAsignado = vendedorAsignado
     }
 
     const updatedEmpresa = await prisma.empresa.update({
@@ -83,18 +88,15 @@ export async function PUT(
       data: updateData
     })
 
-    if (session) {
-      await registrarAccion(
-        session.id,
-        session.alias,
-        'UPDATE_EMPRESA_ZONA',
-        `Empresa ID ${empresaId} reasignada a zona: ${updatedEmpresa.zona}`
-      )
-    }
+    await registrarAccion(
+      session.id,
+      session.alias,
+      'UPDATE_EMPRESA_ZONA',
+      `Empresa ID ${empresaId} reasignada a zona: ${updatedEmpresa.zona} [Tenant #${tenantId}]`
+    )
 
     return NextResponse.json({ success: true, empresa: updatedEmpresa })
   } catch (error: any) {
-    console.error('[API PUT Empresa ID]', error)
-    return NextResponse.json({ error: 'Error al actualizar empresa' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }

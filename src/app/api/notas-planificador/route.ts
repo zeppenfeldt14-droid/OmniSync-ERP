@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuthenticatedTenant, authErrorResponse } from '@/lib/auth'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
+    const { session, tenantId } = await getAuthenticatedTenant(request)
+
     const { searchParams } = new URL(request.url)
     const zona = searchParams.get('zona')
     const alias = searchParams.get('alias')
@@ -12,38 +17,41 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Zona o flag global requerido' }, { status: 400 })
     }
 
-    let whereClause: any = {}
+    const isVendedor = session.nivel === 3
+    const userAlias = session.alias
 
-    // Import session user to check level
-    const { getSessionUser } = await import('@/lib/auth')
-    const session = await getSessionUser()
-    const isVendedor = session?.nivel === 3
-    const userAlias = session?.alias
+    let whereClause: any = {
+      OR: [
+        { empresa: { tenantId } },
+        { pedido: { tenantId } },
+        { empresaId: null, pedidoId: null }
+      ]
+    }
 
     if (global === 'true' && alias) {
-      whereClause = {
-        OR: [
-          { destinatario: alias },
-          { creadoPor: alias }
-        ]
-      }
+      whereClause.AND = [
+        {
+          OR: [
+            { destinatario: alias },
+            { creadoPor: alias }
+          ]
+        }
+      ]
     } else {
-      whereClause = {
-        AND: [
-          { zona: zona as string },
-          ...(isVendedor ? [{ OR: [{ destinatario: userAlias }, { creadoPor: userAlias }] }] : alias ? [{ destinatario: alias }] : [])
-        ]
-      }
+      whereClause.AND = [
+        { zona: zona as string },
+        ...(isVendedor ? [{ OR: [{ destinatario: userAlias }, { creadoPor: userAlias }] }] : alias ? [{ destinatario: alias }] : [])
+      ]
     }
 
     const notas = await prisma.notaPlanificador.findMany({
       where: whereClause,
       include: {
         empresa: {
-          select: { nombre: true, id: true }
+          select: { nombre: true, id: true, tenantId: true }
         },
         pedido: {
-          select: { numeroPedido: true, id: true }
+          select: { numeroPedido: true, id: true, tenantId: true }
         },
         factura: {
           select: { numeroFactura: true, id: true }
@@ -56,19 +64,24 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json(notas)
-  } catch (error) {
-    console.error('Error fetching notas:', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+  } catch (error: any) {
+    return authErrorResponse(error)
   }
 }
 
 export async function POST(request: Request) {
   try {
+    const { session, tenantId } = await getAuthenticatedTenant(request)
     const body = await request.json()
-    const { texto, empresaId, destinatario, zona, fechaRecordatorio, pedidoId, facturaId, cobranzaId, creadoPor } = body
+    const { texto, empresaId, destinatario, zona, fechaRecordatorio, pedidoId, facturaId, cobranzaId } = body
 
     if (!texto || !zona) {
       return NextResponse.json({ error: 'Faltan datos obligatorios' }, { status: 400 })
+    }
+
+    if (empresaId) {
+      const emp = await prisma.empresa.findFirst({ where: { id: Number(empresaId), tenantId } })
+      if (!emp) return NextResponse.json({ error: 'Empresa no pertenece al inquilino.' }, { status: 404 })
     }
 
     const newNota = await prisma.notaPlanificador.create({
@@ -82,7 +95,7 @@ export async function POST(request: Request) {
         zona,
         fechaRecordatorio: fechaRecordatorio ? new Date(fechaRecordatorio) : null,
         estado: 'pendiente',
-        creadoPor: creadoPor || null
+        creadoPor: session.alias
       },
       include: {
         empresa: {
@@ -101,8 +114,7 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json(newNota)
-  } catch (error) {
-    console.error('Error creating nota:', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+  } catch (error: any) {
+    return authErrorResponse(error)
   }
 }

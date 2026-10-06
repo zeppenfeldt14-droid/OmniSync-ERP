@@ -1,18 +1,17 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuthenticatedTenant, authErrorResponse } from '@/lib/auth'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url)
-    const tenantId = searchParams.get('tenantId')
-
-    const where: any = {}
-    if (tenantId) {
-      where.tenantId = Number(tenantId)
-    }
+    const { tenantId } = await getAuthenticatedTenant(req)
 
     const pymes = await prisma.empresa.findMany({
-      where,
+      where: {
+        tenantId
+      },
       include: {
         abonosRecurrentes: true,
         pedidos: {
@@ -28,7 +27,9 @@ export async function GET(req: Request) {
     })
 
     const abonos = await prisma.abonoRecurrente.findMany({
-      where: tenantId ? { tenantId: Number(tenantId) } : {},
+      where: {
+        tenantId
+      },
       include: {
         empresa: {
           select: { id: true, nombre: true, telefono: true, email: true, responsable: true }
@@ -39,8 +40,8 @@ export async function GET(req: Request) {
 
     const productosServicios = await prisma.producto.findMany({
       where: {
-        activo: true,
-        ...(tenantId ? { tenantId: Number(tenantId) } : {})
+        tenantId,
+        activo: true
       },
       orderBy: { precioUnitario: 'asc' }
     })
@@ -51,13 +52,13 @@ export async function GET(req: Request) {
       productosServicios
     })
   } catch (error: any) {
-    console.error('Error in CRM Web API GET:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
 export async function POST(req: Request) {
   try {
+    const { session, tenantId } = await getAuthenticatedTenant(req)
     const body = await req.json()
     const { action } = body
 
@@ -78,7 +79,6 @@ export async function POST(req: Request) {
         potencialCierre,
         etapaEmbudo,
         notas,
-        tenantId,
         vendedorAsignado
       } = body
 
@@ -99,8 +99,8 @@ export async function POST(req: Request) {
           potencialCierre: potencialCierre || 'medio',
           etapaEmbudo: etapaEmbudo || 'prospeccion',
           notas: notas || null,
-          vendedorAsignado: vendedorAsignado || 'Comercial Web',
-          tenantId: tenantId ? Number(tenantId) : null,
+          vendedorAsignado: vendedorAsignado || session.alias || 'Comercial Web',
+          tenantId, // Forzado al inquilino autenticado
           estado: 'prospecto'
         }
       })
@@ -109,12 +109,20 @@ export async function POST(req: Request) {
     }
 
     if (action === 'crear_abono') {
-      const { empresaId, tenantId, nombreServicio, montoMensual, moneda, diaCobro, frecuencia, notas } = body
+      const { empresaId, nombreServicio, montoMensual, moneda, diaCobro, frecuencia, notas } = body
+
+      // Validar que la empresa pertenezca al inquilino
+      const emp = await prisma.empresa.findFirst({
+        where: { id: Number(empresaId), tenantId }
+      })
+      if (!emp) {
+        return NextResponse.json({ error: 'Empresa no encontrada en este inquilino.' }, { status: 404 })
+      }
 
       const nuevoAbono = await prisma.abonoRecurrente.create({
         data: {
           empresaId: Number(empresaId),
-          tenantId: tenantId ? Number(tenantId) : null,
+          tenantId,
           nombreServicio: nombreServicio || 'Hosting & Mantenimiento Web',
           montoMensual: parseFloat(montoMensual) || 0,
           moneda: moneda || 'ARS',
@@ -130,18 +138,25 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: 'Acción no válida' }, { status: 400 })
   } catch (error: any) {
-    console.error('Error in CRM Web API POST:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
 export async function PUT(req: Request) {
   try {
+    const { tenantId } = await getAuthenticatedTenant(req)
     const body = await req.json()
     const { id, etapaEmbudo, diagnosticoWeb, potencialCierre, notas, sitioWebActual } = body
 
     if (!id) {
       return NextResponse.json({ error: 'ID de PyME requerido' }, { status: 400 })
+    }
+
+    const current = await prisma.empresa.findFirst({
+      where: { id: Number(id), tenantId }
+    })
+    if (!current) {
+      return NextResponse.json({ error: 'Empresa no encontrada en este inquilino.' }, { status: 404 })
     }
 
     const updated = await prisma.empresa.update({
@@ -157,7 +172,6 @@ export async function PUT(req: Request) {
 
     return NextResponse.json(updated)
   } catch (error: any) {
-    console.error('Error in CRM Web API PUT:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return authErrorResponse(error)
   }
 }

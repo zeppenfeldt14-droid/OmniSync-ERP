@@ -1,18 +1,20 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser, registrarAccion } from '@/lib/auth'
+import { getAuthenticatedTenant, registrarAccion, authErrorResponse } from '@/lib/auth'
 
 type Params = { params: Promise<{ id: string }> }
 
-// ─── GET: Detalle de un pedido ───────────────────────────────────────────────
-export async function GET(_: Request, { params }: Params) {
+// ─── GET: Detalle de un pedido en el inquilino autenticado ──────────────────
+export async function GET(request: Request, { params }: Params) {
   try {
-    const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
+    const { session, tenantId } = await getAuthenticatedTenant(request)
     const { id } = await params
 
-    const pedido = await prisma.pedido.findUnique({
-      where: { id: Number(id) },
+    const pedido = await prisma.pedido.findFirst({
+      where: { 
+        id: Number(id),
+        tenantId // Scoping estricto al inquilino autenticado
+      },
       include: {
         empresa: true,
         detalles: { include: { producto: true } },
@@ -21,7 +23,7 @@ export async function GET(_: Request, { params }: Params) {
       },
     })
 
-    if (!pedido) return NextResponse.json({ error: 'Pedido no encontrado.' }, { status: 404 })
+    if (!pedido) return NextResponse.json({ error: 'Pedido no encontrado en este inquilino.' }, { status: 404 })
 
     // Zone access check for Level 3
     if (session.nivel === 3 && pedido.zona !== session.zona) {
@@ -30,30 +32,27 @@ export async function GET(_: Request, { params }: Params) {
 
     return NextResponse.json(pedido)
   } catch (error: any) {
-    console.error('[API GET Pedido]', error)
-    return NextResponse.json({ error: 'Error al obtener el pedido.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
 // ─── PATCH: Actualizar estado del pedido ─────────────────────────────────────
 export async function PATCH(request: Request, { params }: Params) {
   try {
-    const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
+    const { session, tenantId } = await getAuthenticatedTenant(request)
     const { id } = await params
 
-    const pedido = await prisma.pedido.findUnique({
-      where: { id: Number(id) },
+    const pedido = await prisma.pedido.findFirst({
+      where: { 
+        id: Number(id),
+        tenantId // Scoping estricto al inquilino
+      },
       include: { detalles: true }
     })
-    if (!pedido) return NextResponse.json({ error: 'Pedido no encontrado.' }, { status: 404 })
+    if (!pedido) return NextResponse.json({ error: 'Pedido no encontrado en este inquilino.' }, { status: 404 })
 
     const body = await request.json()
     const { accion } = body // 'enviar' | 'aprobar' | 'cancelar'
-
-    // ── Transiciones de estado permitidas por nivel ──────────────────────────
-    // Nivel 3 puede: borrador → pendiente_supervisor
-    // Nivel 1/2 pueden: pendiente_supervisor → aprobado | cancelado
 
     let nuevoEstado: string | null = null
     let aprobadoPor: any = {}
@@ -63,7 +62,7 @@ export async function PATCH(request: Request, { params }: Params) {
         return NextResponse.json({ error: 'Solo se puede enviar un pedido en borrador o presupuesto.' }, { status: 400 })
       nuevoEstado = 'pendiente_supervisor'
     } else if (accion === 'aprobar_precio') {
-      if (session.nivel !== 1)
+      if (session.nivel !== 1 && session.rol !== 'SUPER_ADMIN')
         return NextResponse.json({ error: 'Solo Gerencia (Nivel 1) puede aprobar tarifas negociadas.' }, { status: 403 })
       if (pedido.estado !== 'pendiente_supervisor')
         return NextResponse.json({ error: 'El pedido no está pendiente.' }, { status: 400 })
@@ -78,16 +77,15 @@ export async function PATCH(request: Request, { params }: Params) {
       await registrarAccion(
         session.id, session.alias,
         `PEDIDO_TARIFA_APROBADA`,
-        `Tarifa negociada aprobada para el pedido ${pedido.numeroPedido}`
+        `Tarifa negociada aprobada para el pedido ${pedido.numeroPedido} [Tenant #${tenantId}]`
       )
       return NextResponse.json({ success: true, pedido: updated })
     } else if (accion === 'aprobar') {
-      if (session.nivel > 2)
+      if (session.nivel > 2 && session.rol !== 'SUPER_ADMIN')
         return NextResponse.json({ error: 'Sin permisos para aprobar.' }, { status: 403 })
       if (pedido.estado !== 'pendiente_supervisor')
         return NextResponse.json({ error: 'Solo se puede aprobar un pedido pendiente.' }, { status: 400 })
       
-      // Enforce Nivel 1 approval for negotiated prices or negotiated volume tariffs
       if ((pedido.tienePrecioNegociado || pedido.tieneTarifaNegociada) && session.nivel === 2) {
         return NextResponse.json({
           error: 'Este pedido contiene precios o tarifas negociadas y requiere aprobación de Gerencia (Nivel 1).'
@@ -128,20 +126,18 @@ export async function PATCH(request: Request, { params }: Params) {
         }
       }
     } else if (accion === 'confirmar_entrega') {
-      if (session.nivel > 2)
+      if (session.nivel > 2 && session.rol !== 'SUPER_ADMIN')
         return NextResponse.json({ error: 'Sin permisos para confirmar entrega.' }, { status: 403 })
       if (pedido.estado !== 'aprobado')
         return NextResponse.json({ error: 'Solo se puede confirmar entrega en pedidos aprobados.' }, { status: 400 })
 
       const fechaEntregaReal = body.fechaEntregaReal ? new Date(body.fechaEntregaReal) : new Date()
 
-      // Calcular días de plazo desde la condición de pago (ej: '30 días' → 30)
       const plazoMatch = (pedido.condicionPago || '').match(/\d+/)
       const plazoDias = plazoMatch ? parseInt(plazoMatch[0]) : 30
       const fechaVencimiento = new Date(fechaEntregaReal)
       fechaVencimiento.setDate(fechaVencimiento.getDate() + plazoDias)
 
-      // Activar las cobranzas retenidas de este pedido
       await prisma.cobranza.updateMany({
         where: { pedidoId: Number(id), estado: 'retenida' },
         data: {
@@ -153,20 +149,19 @@ export async function PATCH(request: Request, { params }: Params) {
 
       nuevoEstado = 'entregado'
     } else if (accion === 'facturar') {
-      if (session.nivel > 2)
+      if (session.nivel > 2 && session.rol !== 'SUPER_ADMIN')
         return NextResponse.json({ error: 'Sin permisos para facturar.' }, { status: 403 })
       if (pedido.estado !== 'aprobado')
         return NextResponse.json({ error: 'Solo se puede facturar un pedido aprobado.' }, { status: 400 })
       nuevoEstado = 'facturado'
     } else if (accion === 'cancelar') {
-      if (pedido.estado === 'aprobado' && session.nivel > 1)
+      if (pedido.estado === 'aprobado' && session.nivel > 1 && session.rol !== 'SUPER_ADMIN')
         return NextResponse.json({ error: 'Solo Nivel 1 puede cancelar un pedido aprobado.' }, { status: 403 })
       nuevoEstado = 'cancelado'
     } else {
       return NextResponse.json({ error: 'Acción inválida.' }, { status: 400 })
     }
 
-    // Calcula el recargo financiero B si corresponde, y actualiza el total.
     let updateData = { estado: nuevoEstado, ...aprobadoPor }
     
     if (nuevoEstado === 'aprobado' && body.metodoPagoB === 'transferencia' && (pedido.porcentajePagoB || 0) > 0) {
@@ -184,33 +179,30 @@ export async function PATCH(request: Request, { params }: Params) {
       data: updateData,
     })
 
-    // If approved → auto-generate Facturas and Cobranzas
     if (nuevoEstado === 'aprobado') {
-      await generarFacturasYCobranzas(updated, session.alias)
+      await generarFacturasYCobranzas(updated)
     }
 
     await registrarAccion(
       session.id, session.alias,
       `PEDIDO_${accion.toUpperCase()}`,
-      `Pedido ${pedido.numeroPedido} cambió a estado: ${nuevoEstado}`
+      `Pedido ${pedido.numeroPedido} cambió a estado: ${nuevoEstado} [Tenant #${tenantId}]`
     )
 
     return NextResponse.json({ success: true, pedido: updated })
   } catch (error: any) {
-    console.error('[API PATCH Pedido]', error)
-    return NextResponse.json({ error: error.message || 'Error al actualizar el pedido.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
-// ─── Helper: Generar Facturas y Cobranzas al aprobar ────────────────────────
-async function generarFacturasYCobranzas(pedido: any, alias: string) {
+// ─── Helper: Generar Facturas y Cobranzas ────────────────────────────────────
+async function generarFacturasYCobranzas(pedido: any) {
   const año = new Date().getFullYear()
   const baseNum = pedido.id
 
   const empresa = await prisma.empresa.findUnique({ where: { id: pedido.empresaId } })
   const empresaNombre = empresa?.nombre || ''
 
-  // Factura A (con IVA 21%) → parte porcentajePagoA
   const pctA = (pedido.porcentajePagoA || 0) / 100
   const montoA = pedido.subtotalSinIVA * pctA
   if (montoA > 0) {
@@ -248,7 +240,6 @@ async function generarFacturasYCobranzas(pedido: any, alias: string) {
     })
   }
 
-  // Factura B (sin IVA) → parte porcentajePagoB
   const pctB = (pedido.porcentajePagoB || 0) / 100
   const montoB = pedido.subtotalSinIVA * pctB
   if (montoB > 0) {
@@ -287,28 +278,25 @@ async function generarFacturasYCobranzas(pedido: any, alias: string) {
   }
 }
 
-
-// ─── PUT: Actualizar un pedido completo (borrador) ──────────────────────────
+// ─── PUT: Actualizar un pedido completo ─────────────────────────────────────
 export async function PUT(request: Request, { params }: Params) {
   try {
-    const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
+    const { session, tenantId } = await getAuthenticatedTenant(request)
     const { id } = await params
     const pedidoId = Number(id)
 
-    const existing = await prisma.pedido.findUnique({
-      where: { id: pedidoId },
+    const existing = await prisma.pedido.findFirst({
+      where: { id: pedidoId, tenantId },
       include: { detalles: true }
     })
-    if (!existing) return NextResponse.json({ error: 'Pedido no encontrado.' }, { status: 404 })
+    if (!existing) return NextResponse.json({ error: 'Pedido no encontrado en este inquilino.' }, { status: 404 })
 
-    // Check if the order is in borrador state
     if (existing.estado !== 'borrador' && existing.estado !== 'presupuesto') {
       return NextResponse.json({ error: 'Solo se pueden editar pedidos en estado borrador o presupuesto.' }, { status: 400 })
     }
 
     const body = await request.json()
-    let {
+    const {
       empresaId,
       tieneTarifaNegociada: tieneTarifaNegociadaBody,
       detalles,
@@ -330,21 +318,20 @@ export async function PUT(request: Request, { params }: Params) {
       return NextResponse.json({ error: 'Empresa y al menos un producto son requeridos.' }, { status: 400 })
     }
 
-    // Verify company exists
-    const empresa = await prisma.empresa.findUnique({ where: { id: empresaId } })
-    if (!empresa) return NextResponse.json({ error: 'Empresa no encontrada.' }, { status: 404 })
+    const empresa = await prisma.empresa.findFirst({ where: { id: Number(empresaId), tenantId } })
+    if (!empresa) return NextResponse.json({ error: 'Empresa no encontrada en este inquilino.' }, { status: 404 })
 
-    // Find the requested price list or fallback to the latest active one
     let activeList = null
     if (listaPrecioId) {
-      activeList = await prisma.listaPrecio.findUnique({
-        where: { id: listaPrecioId },
+      activeList = await prisma.listaPrecio.findFirst({
+        where: { id: Number(listaPrecioId), tenantId },
         include: { precios: true }
       })
     }
     if (!activeList) {
       activeList = await prisma.listaPrecio.findFirst({
         where: {
+          tenantId,
           activa: true,
           vigenteDesde: { lte: new Date() }
         },
@@ -354,17 +341,16 @@ export async function PUT(request: Request, { params }: Params) {
     }
 
     let tieneTarifaNegociada = tieneTarifaNegociadaBody || false
-
-    // Load configurable rules from the selected list (fallback to defaults if not set)
     const MINIMO_CAJAS = activeList?.minimoCajas ?? 300
     const LIMITE_LISTA_A = activeList?.limiteListaA ?? 60
 
-    // Fetch products
-    const productoIds = detalles.map((d: any) => d.productoId)
-    const productos = await prisma.producto.findMany({ where: { id: { in: productoIds } } })
+    const productoIds = detalles.map((d: any) => Number(d.productoId))
+    const productos = await prisma.producto.findMany({ where: { id: { in: productoIds }, tenantId } })
+    if (productos.length !== productoIds.length) {
+      return NextResponse.json({ error: 'Uno o más productos no pertenecen a este inquilino.' }, { status: 400 })
+    }
     const productoMap = Object.fromEntries(productos.map(p => [p.id, p]))
 
-    // Check volume tier
     const totalCajas = detalles.reduce((sum: number, d: any) => sum + (d.cantidadCajas || 0), 0)
     const isVolume = totalCajas >= MINIMO_CAJAS || tieneTarifaNegociada
 
@@ -418,36 +404,30 @@ export async function PUT(request: Request, { params }: Params) {
       }
     })
 
-    let flag60Rule = false
-    const totalProductos = detalles.length
     if (totalCajas < MINIMO_CAJAS) {
-      const porcentajeListaA = (countListaA / totalProductos) * 100
+      const porcentajeListaA = (countListaA / detalles.length) * 100
       if (porcentajeListaA >= LIMITE_LISTA_A) {
         tienePrecioNegociado = true
-        flag60Rule = true
       } else if (porcentajeListaA > 0) {
         tieneTarifaNegociada = true
       }
     }
 
-    // Auto-update observaciones con el total de cajas
     let cleanObs = observaciones || ''
     cleanObs = cleanObs.replace(/^TOTAL CAJAS=\d+( \| )?/, '')
     const finalObservaciones = `TOTAL CAJAS=${totalCajas}${cleanObs ? ' | ' + cleanObs : ''}`
 
-    // Financial calculations
     const pctA = (porcentajePagoA || 20) / 100
     const montoIVA = subtotalSinIVA * pctA * 0.21
     const montoFinanciera = aplicaFinanciera ? (subtotalSinIVA + montoIVA) * 0.03 : 0
     const totalGeneral = subtotalSinIVA + montoIVA + montoFinanciera
 
-    // Delete old details and recreate
     await prisma.detallePedido.deleteMany({ where: { pedidoId } })
 
     const updated = await prisma.pedido.update({
       where: { id: pedidoId },
       data: {
-        empresaId,
+        empresaId: Number(empresaId),
         tienePrecioNegociado,
         tieneTarifaNegociada: tieneTarifaNegociada || false,
         condicionPago: condicionPago || `${porcentajePagoA || 20}/${porcentajePagoB || 80}`,
@@ -470,27 +450,31 @@ export async function PUT(request: Request, { params }: Params) {
       include: { detalles: true }
     })
 
-    await registrarAccion(session.id, session.alias, 'UPDATE_PEDIDO', `Pedido ${updated.numeroPedido} actualizado por vendedor`)
+    await registrarAccion(
+      session.id, 
+      session.alias, 
+      'UPDATE_PEDIDO', 
+      `Pedido ${updated.numeroPedido} actualizado en inquilino #${tenantId}`
+    )
 
     return NextResponse.json({ success: true, pedido: updated })
   } catch (error: any) {
-    console.error('[API PUT Pedido]', error)
-    return NextResponse.json({ error: error.message || 'Error al actualizar el pedido.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
 // ─── DELETE: Eliminar un pedido ──────────────────────────────────────────────
-export async function DELETE(_: Request, { params }: Params) {
+export async function DELETE(request: Request, { params }: Params) {
   try {
-    const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
+    const { session, tenantId } = await getAuthenticatedTenant(request)
     const { id } = await params
     const pedidoId = Number(id)
 
-    const existing = await prisma.pedido.findUnique({ where: { id: pedidoId } })
-    if (!existing) return NextResponse.json({ error: 'Pedido no encontrado.' }, { status: 404 })
+    const existing = await prisma.pedido.findFirst({ 
+      where: { id: pedidoId, tenantId } 
+    })
+    if (!existing) return NextResponse.json({ error: 'Pedido no encontrado en este inquilino.' }, { status: 404 })
 
-    // Only allow deletion if Nivel 1/2, or if it's the seller (Nivel 3) and it's a draft or cancelled
     if (session.nivel === 3 && existing.vendedorAlias !== session.alias) {
       return NextResponse.json({ error: 'No puedes borrar pedidos de otro vendedor.' }, { status: 403 })
     }
@@ -498,19 +482,21 @@ export async function DELETE(_: Request, { params }: Params) {
       return NextResponse.json({ error: 'Solo puedes borrar pedidos en borrador o cancelados.' }, { status: 403 })
     }
 
-    // Cascade delete is usually configured in Prisma for detalles, facturas, etc.
-    // We will manually delete dependent records if not configured.
     await prisma.detallePedido.deleteMany({ where: { pedidoId } })
     await prisma.factura.deleteMany({ where: { pedidoId } })
     await prisma.cobranza.deleteMany({ where: { pedidoId } })
     
     await prisma.pedido.delete({ where: { id: pedidoId } })
 
-    await registrarAccion(session.id, session.alias, 'DELETE_PEDIDO', `Pedido ${existing.numeroPedido} eliminado`)
+    await registrarAccion(
+      session.id, 
+      session.alias, 
+      'DELETE_PEDIDO', 
+      `Pedido ${existing.numeroPedido} eliminado en inquilino #${tenantId}`
+    )
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error('[API DELETE Pedido]', error)
-    return NextResponse.json({ error: 'Error al eliminar el pedido.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }

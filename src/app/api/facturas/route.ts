@@ -1,33 +1,39 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser } from '@/lib/auth'
+import { getAuthenticatedTenant, authErrorResponse } from '@/lib/auth'
 
-// ─── GET: Listar facturas ─────────────────────────────────────────────────────
+export const dynamic = 'force-dynamic'
+
+// ─── GET: Listar facturas del inquilino autenticado ──────────────────────────
 export async function GET(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
+    const { session, tenantId } = await getAuthenticatedTenant(request)
 
     const { searchParams } = new URL(request.url)
     const zona = searchParams.get('zona')
     const queryVendedor = searchParams.get('vendedor')
 
     // Build zone filter via Pedido relation
-    let pedidoZonaFilter: any = {}
+    let pedidoFilter: any = {
+      tenantId // Forzado: solo facturas de pedidos de este inquilino
+    }
+
     if (session.nivel === 3) {
-      pedidoZonaFilter = { pedido: { zona: session.zona, vendedorAlias: session.alias } }
+      pedidoFilter.zona = session.zona
+      pedidoFilter.vendedorAlias = session.alias
     } else {
       if (zona && zona !== 'todas') {
-        pedidoZonaFilter = { pedido: { zona } }
+        pedidoFilter.zona = zona
       }
       if (queryVendedor) {
-        if (!pedidoZonaFilter.pedido) pedidoZonaFilter.pedido = {}
-        pedidoZonaFilter.pedido.vendedorAlias = queryVendedor
+        pedidoFilter.vendedorAlias = queryVendedor
       }
     }
 
     const facturas = await prisma.factura.findMany({
-      where: pedidoZonaFilter,
+      where: {
+        pedido: pedidoFilter
+      },
       include: {
         pedido: {
           select: {
@@ -35,7 +41,7 @@ export async function GET(request: Request) {
             zona: true,
             vendedorAlias: true,
             estado: true,
-            empresa: { select: { nombre: true } },
+            empresa: { select: { nombre: true, cuit: true } },
           }
         },
         pagos: true,
@@ -45,7 +51,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json(facturas)
   } catch (error: any) {
-    console.error('[API GET Facturas]', error)
-    return NextResponse.json({ error: 'Error al listar facturas.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }

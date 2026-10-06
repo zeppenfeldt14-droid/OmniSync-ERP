@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser } from '@/lib/auth'
+import { getAuthenticatedTenant, authErrorResponse } from '@/lib/auth'
 
-// ─── GET: Listar cobranzas filtradas por zona/nivel ──────────────────────────
+export const dynamic = 'force-dynamic'
+
+// ─── GET: Listar cobranzas filtradas por tenant/zona/nivel ───────────────────
 export async function GET(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
+    const { session, tenantId } = await getAuthenticatedTenant(request)
 
     const { searchParams } = new URL(request.url)
     const zona   = searchParams.get('zona')
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
           : JSON.parse(session.zonasHabilitadas || '[]')
         zonaFilter = zona && zona !== 'todas'
           ? { zona }
-          : { zona: { in: habilitadas } }
+          : (habilitadas.length > 0 ? { zona: { in: habilitadas } } : {})
       } else if (zona && zona !== 'todas') {
         zonaFilter = { zona }
       }
@@ -33,19 +34,13 @@ export async function GET(request: Request) {
       }
     }
 
-    const tenantParam = searchParams.get('tenantId')
-    const tenantSlug = request.headers.get('x-tenant-slug')
-    let targetTenantId = session.tenantId || (tenantParam ? parseInt(tenantParam) : null)
-    if (!targetTenantId && tenantSlug) {
-      const t = await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
-      if (t) targetTenantId = t.id
-    }
-
     const cobranzas = await prisma.cobranza.findMany({
       where: {
+        pedido: {
+          tenantId // Forzado: siempre scoped al inquilino autenticado
+        },
         ...zonaFilter,
         ...(estado && estado !== 'todos' ? { estado } : {}),
-        ...(targetTenantId ? { pedido: { tenantId: targetTenantId } } : {}),
       },
       include: {
         pedido: {
@@ -53,6 +48,7 @@ export async function GET(request: Request) {
             numeroPedido: true,
             condicionPago: true,
             plazosPago: true,
+            tenantId: true
           }
         },
         pagos: {
@@ -78,7 +74,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json(enriched)
   } catch (error: any) {
-    console.error('[API GET Cobranzas]', error)
-    return NextResponse.json({ error: 'Error al listar cobranzas.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }

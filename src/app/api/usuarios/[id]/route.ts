@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser, registrarAccion } from '@/lib/auth'
+import { getAuthenticatedTenant, registrarAccion, authErrorResponse } from '@/lib/auth'
 
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSessionUser()
-    if (!session || session.nivel !== 1) {
+    const { session, tenantId } = await getAuthenticatedTenant(request)
+    if (session.nivel > 2 && session.rol !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Acceso denegado.' }, { status: 403 })
     }
 
@@ -21,15 +21,18 @@ export async function DELETE(
 
     // Prevent deleting oneself
     if (userId === session.id) {
-      return NextResponse.json({ error: 'No puedes eliminar tu propio perfil administrador.' }, { status: 400 })
+      return NextResponse.json({ error: 'No puedes eliminar tu propio perfil.' }, { status: 400 })
     }
 
-    const userToDelete = await prisma.usuario.findUnique({
-      where: { id: userId }
+    const userToDelete = await prisma.usuario.findFirst({
+      where: { 
+        id: userId,
+        tenantId // Estricto: solo eliminar usuario del inquilino autenticado
+      }
     })
 
     if (!userToDelete) {
-      return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 })
+      return NextResponse.json({ error: 'Usuario no encontrado en este inquilino.' }, { status: 404 })
     }
 
     await prisma.usuario.delete({
@@ -40,12 +43,11 @@ export async function DELETE(
       session.id,
       session.alias,
       'DELETE_USER',
-      `Usuario eliminado: ${userToDelete.nombre} (@${userToDelete.alias})`
+      `Usuario eliminado en inquilino #${tenantId}: ${userToDelete.nombre} (@${userToDelete.alias})`
     )
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error('[API DELETE User] Error:', error)
-    return NextResponse.json({ error: 'Error al eliminar usuario.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }

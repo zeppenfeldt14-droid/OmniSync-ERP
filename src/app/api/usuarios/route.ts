@@ -1,36 +1,21 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser, hashPassword, registrarAccion } from '@/lib/auth'
+import { getAuthenticatedTenant, hashPassword, registrarAccion, authErrorResponse } from '@/lib/auth'
 
-// GET: List all users (N1 only)
+export const dynamic = 'force-dynamic'
+
+// GET: Listar usuarios del inquilino autenticado (N1/N2)
 export async function GET(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!session || session.nivel !== 1) {
-      return NextResponse.json({ error: 'Acceso denegado.' }, { status: 403 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const tenantParam = searchParams.get('tenantId')
-    const tenantSlug = request.headers.get('x-tenant-slug')
-
-    let targetTenantId = session.tenantId
-    if (!targetTenantId) {
-      if (tenantParam) {
-        targetTenantId = parseInt(tenantParam)
-      } else if (tenantSlug) {
-        const t = await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
-        if (t) targetTenantId = t.id
-      }
-    }
-
-    const where: any = {}
-    if (targetTenantId) {
-      where.tenantId = targetTenantId
+    const { session, tenantId } = await getAuthenticatedTenant(request)
+    if (session.nivel > 2 && session.rol !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Acceso denegado. Se requiere nivel de administración.' }, { status: 403 })
     }
 
     const usuarios = await prisma.usuario.findMany({
-      where: Object.keys(where).length > 0 ? where : undefined,
+      where: {
+        tenantId
+      },
       orderBy: { nombre: 'asc' },
       select: {
         id: true,
@@ -59,16 +44,15 @@ export async function GET(request: Request) {
 
     return NextResponse.json(usuarios)
   } catch (error: any) {
-    console.error('[API GET Users] Error:', error)
-    return NextResponse.json({ error: 'Error al listar usuarios.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
-// POST: Create or Update User (N1 only)
+// POST: Crear o Modificar Usuario del Inquilino (N1 del inquilino o Super Admin)
 export async function POST(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!session || session.nivel !== 1) {
+    const { session, tenantId } = await getAuthenticatedTenant(request)
+    if (session.nivel > 2 && session.rol !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Acceso denegado.' }, { status: 403 })
     }
 
@@ -98,17 +82,20 @@ export async function POST(request: Request) {
 
     const cleanAlias = alias.replace(/^@/, '').trim()
 
-    // 1. UPDATE USER
+    // 1. ACTUALIZAR USUARIO EXISTENTE
     if (id) {
-      const existingUser = await prisma.usuario.findUnique({
-        where: { id: Number(id) }
+      const existingUser = await prisma.usuario.findFirst({
+        where: { 
+          id: Number(id),
+          tenantId // Estricto: solo modificar usuarios de su propio inquilino
+        }
       })
 
       if (!existingUser) {
-        return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 })
+        return NextResponse.json({ error: 'Usuario no encontrado en este inquilino.' }, { status: 404 })
       }
 
-      // Check if alias or email is taken by another user
+      // Validar que alias o email no colisionen con otro usuario
       const duplicateUser = await prisma.usuario.findFirst({
         where: {
           NOT: { id: Number(id) },
@@ -157,13 +144,13 @@ export async function POST(request: Request) {
         session.id,
         session.alias,
         'UPDATE_USER',
-        `Usuario modificado: ${updatedUser.nombre} (@${updatedUser.alias})`
+        `Usuario modificado: ${updatedUser.nombre} (@${updatedUser.alias}) [Tenant #${tenantId}]`
       )
 
       return NextResponse.json({ success: true, user: updatedUser })
     }
 
-    // 2. CREATE USER
+    // 2. CREAR NUEVO USUARIO EN EL INQUILINO
     if (!password) {
       return NextResponse.json({ error: 'La contraseña es obligatoria para nuevos perfiles.' }, { status: 400 })
     }
@@ -183,15 +170,6 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(password)
 
-    let targetTenantId = session.tenantId || (body.tenantId ? parseInt(body.tenantId) : null)
-    if (!targetTenantId) {
-      const tenantSlug = request.headers.get('x-tenant-slug')
-      if (tenantSlug) {
-        const t = await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
-        if (t) targetTenantId = t.id
-      }
-    }
-
     const newUser = await prisma.usuario.create({
       data: {
         nombre,
@@ -208,7 +186,7 @@ export async function POST(request: Request) {
         zona: zona || 'CABA',
         zonasHabilitadas: zonasHabilitadas || [],
         unidadesNegocio: unidadesNegocio || ['Gerencia Comercial'],
-        tenantId: targetTenantId || null,
+        tenantId, // Forzado al inquilino autenticado
         isNivelTodo: (session.alias === 'admin' || session.isNivelTodo) && isNivelTodo === true,
         passwordUpdatedAt: new Date()
       }
@@ -218,12 +196,11 @@ export async function POST(request: Request) {
       session.id,
       session.alias,
       'CREATE_USER',
-      `Nuevo usuario creado: ${newUser.nombre} (@${newUser.alias})`
+      `Nuevo usuario creado en inquilino #${tenantId}: ${newUser.nombre} (@${newUser.alias})`
     )
 
     return NextResponse.json({ success: true, user: newUser })
   } catch (error: any) {
-    console.error('[API POST Users] Error:', error)
-    return NextResponse.json({ error: 'Error al procesar el usuario.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }

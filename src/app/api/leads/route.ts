@@ -1,32 +1,19 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser } from '@/lib/auth'
+import { getAuthenticatedTenant, authErrorResponse } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: Request) {
   try {
-    const user = await getSessionUser()
-    if (!user) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
-    }
+    const { tenantId } = await getAuthenticatedTenant(req)
 
     const { searchParams } = new URL(req.url)
-    const tenantIdParam = searchParams.get('tenantId')
-    const tenantSlugParam = searchParams.get('tenantSlug')
     const estadoParam = searchParams.get('estado')
     const search = searchParams.get('search') || ''
 
-    const where: any = {}
-
-    // Resolver inquilino
-    if (tenantIdParam) {
-      where.tenantId = Number(tenantIdParam)
-    } else if (tenantSlugParam) {
-      const t = await prisma.tenant.findUnique({ where: { slug: tenantSlugParam } })
-      if (t) where.tenantId = t.id
-    } else if (user.tenantId && user.nivel !== 1) {
-      where.tenantId = user.tenantId
+    const where: any = {
+      tenantId // Scoping forzado al inquilino autenticado
     }
 
     if (estadoParam && estadoParam !== 'ALL') {
@@ -56,7 +43,7 @@ export async function GET(req: Request) {
       }),
       prisma.leadProspecto.groupBy({
         by: ['estado'],
-        where: where.tenantId ? { tenantId: where.tenantId } : {},
+        where: { tenantId },
         _count: { _all: true }
       })
     ])
@@ -82,17 +69,13 @@ export async function GET(req: Request) {
       counts
     })
   } catch (error: any) {
-    console.error('Error en GET /api/leads:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
 export async function PATCH(req: Request) {
   try {
-    const user = await getSessionUser()
-    if (!user) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
-    }
+    const { tenantId } = await getAuthenticatedTenant(req)
 
     const body = await req.json()
     const { id, estado, scoreMadurez, notas, accion } = body
@@ -101,16 +84,18 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'ID de lead requerido' }, { status: 400 })
     }
 
-    const lead = await prisma.leadProspecto.findUnique({ where: { id: Number(id) } })
+    const lead = await prisma.leadProspecto.findFirst({ 
+      where: { id: Number(id), tenantId } 
+    })
     if (!lead) {
-      return NextResponse.json({ error: 'Lead no encontrado' }, { status: 404 })
+      return NextResponse.json({ error: 'Lead no encontrado en este inquilino' }, { status: 404 })
     }
 
     // ACCIÓN ESPECIAL: CONVERTIR EN EMPRESA / CLIENTE IN-HOUSE EN EL ERP
     if (accion === 'CONVERTIR_EN_EMPRESA') {
       const nuevaEmpresa = await prisma.empresa.create({
         data: {
-          tenantId: lead.tenantId,
+          tenantId,
           nombre: lead.empresa,
           responsable: lead.contacto,
           telefono: lead.whatsapp || lead.telefono,
@@ -158,7 +143,6 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({ success: true, lead: updated })
   } catch (error: any) {
-    console.error('Error en PATCH /api/leads:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return authErrorResponse(error)
   }
 }

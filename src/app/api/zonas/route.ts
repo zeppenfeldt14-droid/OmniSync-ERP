@@ -1,62 +1,46 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser } from '@/lib/auth'
+import { getAuthenticatedTenant, authErrorResponse } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!session) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
-
-    const { searchParams } = new URL(request.url)
-    const tenantIdParam = searchParams.get('tenantId')
-    const tenantSlug = request.headers.get('x-tenant-slug')
-
-    let targetTenantId = session.tenantId || (tenantIdParam ? parseInt(tenantIdParam) : null)
-    if (!targetTenantId && tenantSlug) {
-      const t = await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
-      if (t) targetTenantId = t.id
-    }
-
-    const where: any = {}
-    if (targetTenantId) {
-      where.tenantId = targetTenantId
-    }
+    const { tenantId } = await getAuthenticatedTenant(request)
 
     const zonas = await prisma.zona.findMany({
-      where: Object.keys(where).length > 0 ? where : undefined,
+      where: {
+        tenantId
+      },
       orderBy: { nombre: 'asc' }
     })
 
     return NextResponse.json(zonas)
   } catch (error: any) {
-    console.error('[API GET Zonas]', error)
-    return NextResponse.json({ error: 'Error al listar zonas.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!session || session.nivel !== 1) {
+    const { session, tenantId } = await getAuthenticatedTenant(request)
+    if (session.nivel > 2 && session.rol !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'No autorizado. Se requieren privilegios de Administrador.' }, { status: 403 })
     }
 
     const body = await request.json()
-    const { nombre, tenantId } = body
+    const { nombre } = body
 
     if (!nombre || !nombre.trim()) {
       return NextResponse.json({ error: 'Nombre es requerido.' }, { status: 400 })
     }
 
     const normalizedNombre = nombre.trim()
-    const targetTenantId = tenantId ? parseInt(String(tenantId)) : (session.tenantId || null)
 
     // Check if duplicate in this tenant
     const exists = await prisma.zona.findFirst({
       where: { 
-        tenantId: targetTenantId,
+        tenantId,
         nombre: normalizedNombre 
       }
     })
@@ -68,21 +52,20 @@ export async function POST(request: Request) {
     const zona = await prisma.zona.create({
       data: { 
         nombre: normalizedNombre,
-        tenantId: targetTenantId
+        tenantId
       }
     })
 
     return NextResponse.json({ success: true, zona })
   } catch (error: any) {
-    console.error('[API POST Zona]', error)
-    return NextResponse.json({ error: 'Error al crear zona.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
 export async function PUT(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!session || session.nivel !== 1) {
+    const { session, tenantId } = await getAuthenticatedTenant(request)
+    if (session.nivel > 2 && session.rol !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'No autorizado. Se requieren privilegios de Administrador.' }, { status: 403 })
     }
 
@@ -95,21 +78,21 @@ export async function PUT(request: Request) {
 
     const normalizedNombre = nombre.trim()
 
-    // Find original zone
-    const existing = await prisma.zona.findUnique({
-      where: { id }
+    // Find original zone in this tenant
+    const existing = await prisma.zona.findFirst({
+      where: { id: Number(id), tenantId }
     })
 
     if (!existing) {
-      return NextResponse.json({ error: 'No se encontró la zona.' }, { status: 404 })
+      return NextResponse.json({ error: 'No se encontró la zona en este inquilino.' }, { status: 404 })
     }
 
     // Check if new name already exists elsewhere within the same tenant
     const duplicate = await prisma.zona.findFirst({
       where: {
-        tenantId: existing.tenantId,
+        tenantId,
         nombre: normalizedNombre,
-        id: { not: id }
+        id: { not: Number(id) }
       }
     })
 
@@ -121,36 +104,29 @@ export async function PUT(request: Request) {
 
     // Update the zone name
     const updatedZona = await prisma.zona.update({
-      where: { id },
+      where: { id: Number(id) },
       data: { nombre: normalizedNombre }
     })
 
-    // Cascade update the zone field of all companies assigned to the old zone name
+    // Cascade update the zone field of all companies assigned to the old zone name for this tenant
     await prisma.empresa.updateMany({
       where: { 
         zona: oldName,
-        tenantId: existing.tenantId || undefined
+        tenantId
       },
-      data: { zona: normalizedNombre }
-    })
-
-    // Cascade update the sub-zones associated with the old zone name
-    await prisma.subZona.updateMany({
-      where: { zona: oldName },
       data: { zona: normalizedNombre }
     })
 
     return NextResponse.json({ success: true, zona: updatedZona })
   } catch (error: any) {
-    console.error('[API PUT Zona]', error)
-    return NextResponse.json({ error: 'Error al modificar zona.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
 
 export async function DELETE(request: Request) {
   try {
-    const session = await getSessionUser()
-    if (!session || session.nivel !== 1) {
+    const { session, tenantId } = await getAuthenticatedTenant(request)
+    if (session.nivel > 2 && session.rol !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'No autorizado. Se requieren privilegios de Administrador.' }, { status: 403 })
     }
 
@@ -166,19 +142,19 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ID inválido.' }, { status: 400 })
     }
 
-    const existing = await prisma.zona.findUnique({
-      where: { id }
+    const existing = await prisma.zona.findFirst({
+      where: { id, tenantId }
     })
 
     if (!existing) {
-      return NextResponse.json({ error: 'No se encontró la zona.' }, { status: 404 })
+      return NextResponse.json({ error: 'No se encontró la zona en este inquilino.' }, { status: 404 })
     }
 
-    // Validate if any companies are currently assigned to this zone
+    // Validate if any companies are currently assigned to this zone in this tenant
     const hasCompanies = await prisma.empresa.findFirst({
       where: { 
         zona: existing.nombre,
-        tenantId: existing.tenantId || undefined
+        tenantId
       }
     })
 
@@ -188,19 +164,12 @@ export async function DELETE(request: Request) {
       }, { status: 400 })
     }
 
-    // Delete sub-zones associated with it
-    await prisma.subZona.deleteMany({
-      where: { zona: existing.nombre }
-    })
-
-    // Delete the zone
     await prisma.zona.delete({
       where: { id }
     })
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error('[API DELETE Zona]', error)
-    return NextResponse.json({ error: 'Error al eliminar zona.' }, { status: 500 })
+    return authErrorResponse(error)
   }
 }
