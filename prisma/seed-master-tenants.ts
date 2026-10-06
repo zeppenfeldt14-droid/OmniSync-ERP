@@ -68,43 +68,82 @@ async function main() {
       oldSlug: 'vinnaty',
       slug: 'ventas-vs',
       nombre: 'Ventas.VS - Servicios Comerciales & Digitales',
-      descripcion: 'Servicios de marketing, diseño web, desarrollo de software, KPIs y pauta digital.',
+      descripcion: 'Agencia de marketing digital, desarrollo web, software a medida, pauta publicitaria y CRM.',
       shortCode: 'VVS',
       colorPrimario: '#7c3aed',
       colorSecundario: '#6d28d9',
       tipoModelo: 'SERVICIOS_DIGITALES',
+      modeloPrincipal: 'MOD-MKT-01',
+      subModelo: 'SUB-MKT-B2B',
+      nicho: 'NICH-MKT-GROWTH',
+      canalesVenta: ['B2B', 'WHATSAPP_CORP', 'EMAIL_PROPOSAL'],
+      bridgeConfig: { eOmniSyncUrl: '', syncToken: '', autoTransplant: false, activeStoreId: 'ventas-vs' },
       moneda: 'USD',
       defaultPass: 'ventasvs123',
       aliasSuffix: 'ventasvs',
-      domain: 'ventasvs.com'
+      domain: 'ventasvs.com',
+      aiConfig: {
+        nichoId: 'AGENCIA_MARKETING_VENTASVS',
+        nombreAgente: 'Director Comercial Ventas.VS',
+        tono: 'Estratégico, Persuasivo, Orientado a ROI y Alta Conversión',
+        directivaSistema: 'Identificar comercios y empresas sin sitio web o con presencia digital deficiente para ofrecerles páginas web, tiendas online y automatización comercial.',
+        palabrasClave: ['página web', 'tienda online', 'e-commerce', 'redes sociales', 'meta ads', 'google ads', 'crm', 'software a medida'],
+        criteriosICP: { tipo: 'Empresas B2B y Comercios', antiguedadMinima: '1 año', empleadosMinimos: 3 }
+      }
     },
     {
       oldSlug: 'azuchel',
       slug: 'azuchel',
-      nombre: 'Azuchel',
-      descripcion: 'Venta y distribución mayorista de golosinas y consumo masivo en terreno.',
+      nombre: 'Azuchel - Regalos & Merchandising Corporativo',
+      descripcion: 'Tienda de regalos personalizados (B2C) y producción de material POP, stickers y box de regalos para empresas (B2B).',
       shortCode: 'AZU',
       colorPrimario: '#10b981',
       colorSecundario: '#059669',
-      tipoModelo: 'FISICO_TERRENO',
+      tipoModelo: 'HIBRIDO',
+      modeloPrincipal: 'MOD-REG-01',
+      subModelo: 'SUB-REG-B2B',
+      nicho: 'NICH-REG-CORP',
+      canalesVenta: ['B2C', 'B2B', 'WHATSAPP_MASIVO', 'EMAIL_CATALOGO_PDF'],
+      bridgeConfig: { eOmniSyncUrl: '', syncToken: '', autoTransplant: false, activeStoreId: 'azuchel-regalos' },
       moneda: 'ARS',
       defaultPass: 'azuchel123',
       aliasSuffix: 'azuchel',
-      domain: 'azuchel.com'
+      domain: 'azuchel.com',
+      aiConfig: {
+        nichoId: 'REGALOS_MERCHANDISING_AZUCHEL',
+        nombreAgente: 'Asesor Corporativo Azuchel',
+        tono: 'Elegante, Creativo, Cálido y Enfocado en Branding de Empresas',
+        directivaSistema: 'Captar empresas, departamentos de RRHH y agencias para ofrecerles material POP, stickers promocionales, regalos de fin de año y kits de onboarding para colaboradores.',
+        palabrasClave: ['regalo corporativo', 'merchandising', 'material pop', 'stickers', 'box de regalo', 'kit de bienvenida', 'onboarding', 'branding'],
+        criteriosICP: { tipo: 'Empresas Medianas y Grandes / RRHH', empleadosMinimos: 15 }
+      }
     },
     {
       oldSlug: 'golocinas',
       slug: 'golocinas',
-      nombre: 'Golocinas',
-      descripcion: 'Distribución mayorista, consumo masivo, ruteo geolocalizado y venta en terreno.',
+      nombre: 'Golocinas - Distribución Mayorista & Snacks',
+      descripcion: 'Distribución mayorista de golosinas, chocolates, galletas y snacks con ruteo geolocalizado en terreno.',
       shortCode: 'GLC',
       colorPrimario: '#2563eb',
       colorSecundario: '#1d4ed8',
       tipoModelo: 'FISICO_TERRENO',
+      modeloPrincipal: 'MOD-DIST-01',
+      subModelo: 'SUB-DIST-TERRENO',
+      nicho: 'NICH-DIST-GOLOSINAS',
+      canalesVenta: ['TERRENO', 'WHATSAPP_PRECIOS', 'VISITA_PREVENTISTA'],
+      bridgeConfig: { eOmniSyncUrl: '', syncToken: '', autoTransplant: false, activeStoreId: 'golocinas-mayorista' },
       moneda: 'ARS',
       defaultPass: 'golocinas123',
       aliasSuffix: 'golocinas',
-      domain: 'golocinas.com'
+      domain: 'golocinas.com',
+      aiConfig: {
+        nichoId: 'CONSUMO_MASIVO_GOLOCINAS',
+        nombreAgente: 'Coordinador de Prospección Golocinas',
+        tono: 'Ágil, Comercial, Directo y Enfocado en Precios por Bulto',
+        directivaSistema: 'Geolocalizar comercios minoristas (kioscos, maxikioscos, autoservicios, almacenes) para armar rutas de visitas a preventistas de calle con listas de precios mayoristas.',
+        palabrasClave: ['golosinas', 'chocolates', 'galletitas', 'kiosco', 'mayorista', 'bulto cerrado', 'distribuidora', 'reparto'],
+        criteriosICP: { tipo: 'Comercios minoristas a la calle', ubicacion: 'Zonas 1, 2, 3 y 4' }
+      }
     }
   ]
 
@@ -141,6 +180,11 @@ async function main() {
             colorPrimario: tConf.colorPrimario,
             colorSecundario: tConf.colorSecundario,
             tipoModelo: tConf.tipoModelo,
+            modeloPrincipal: tConf.modeloPrincipal,
+            subModelo: tConf.subModelo,
+            nicho: tConf.nicho,
+            canalesVenta: tConf.canalesVenta,
+            bridgeConfig: tConf.bridgeConfig,
             moneda: tConf.moneda,
             activo: true
           }
@@ -162,6 +206,11 @@ async function main() {
           colorPrimario: tConf.colorPrimario,
           colorSecundario: tConf.colorSecundario,
           tipoModelo: tConf.tipoModelo,
+          modeloPrincipal: tConf.modeloPrincipal,
+          subModelo: tConf.subModelo,
+          nicho: tConf.nicho,
+          canalesVenta: tConf.canalesVenta,
+          bridgeConfig: tConf.bridgeConfig,
           moneda: tConf.moneda,
           activo: true,
           configuracion: {
@@ -183,11 +232,43 @@ async function main() {
           colorPrimario: tConf.colorPrimario,
           colorSecundario: tConf.colorSecundario,
           tipoModelo: tConf.tipoModelo,
+          modeloPrincipal: tConf.modeloPrincipal,
+          subModelo: tConf.subModelo,
+          nicho: tConf.nicho,
+          canalesVenta: tConf.canalesVenta,
+          bridgeConfig: tConf.bridgeConfig,
           moneda: tConf.moneda,
           activo: true
         }
       })
       console.log(`✅ Inquilino actualizado: ${tenant.nombre} (ID: ${tenant.id})`)
+    }
+
+    // Configuración del Agente IA del Inquilino
+    if (tConf.aiConfig) {
+      await prisma.agenteIAPromptConfig.upsert({
+        where: { tenantId: tenant.id },
+        update: {
+          nichoId: tConf.aiConfig.nichoId,
+          nombreAgente: tConf.aiConfig.nombreAgente,
+          tono: tConf.aiConfig.tono,
+          directivaSistema: tConf.aiConfig.directivaSistema,
+          palabrasClave: tConf.aiConfig.palabrasClave,
+          criteriosICP: tConf.aiConfig.criteriosICP,
+          activo: true
+        },
+        create: {
+          tenantId: tenant.id,
+          nichoId: tConf.aiConfig.nichoId,
+          nombreAgente: tConf.aiConfig.nombreAgente,
+          tono: tConf.aiConfig.tono,
+          directivaSistema: tConf.aiConfig.directivaSistema,
+          palabrasClave: tConf.aiConfig.palabrasClave,
+          criteriosICP: tConf.aiConfig.criteriosICP,
+          activo: true
+        }
+      })
+      console.log(`🤖 Agente IA configurado para ${tenant.nombre}: [${tConf.aiConfig.nombreAgente}]`)
     }
 
     // ─── 3. ZONAS ESTÁNDAR ──────────────────────────────────────────────────

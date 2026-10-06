@@ -31,6 +31,9 @@ interface DashboardData {
     totalUsuarios: number
     totalProductos: number
     totalZonas: number
+    totalLeads?: number
+    totalMaduros?: number
+    totalTrasplantados?: number
   }
   modeloStats: {
     FISICO_TERRENO: number
@@ -186,6 +189,47 @@ export default function SuperAdminDashboardPage() {
                 {data.kpis.totalProductos}
               </div>
               <p className="text-[10px] text-zinc-400 mt-1">Productos y servicios en plantillas</p>
+            </div>
+          </div>
+
+          {/* ── BANNER GRANJA PROSPECCIÓN IA (INCUBATOR METRICS) ── */}
+          <div className="bg-gradient-to-r from-[#0e1017] via-[#161a29] to-[#0e1017] border border-amber-500/30 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-1.5 max-w-xl">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-amber-400" />
+                  <span className="text-[10px] font-mono font-black uppercase tracking-widest text-amber-400">
+                    Granja de Oportunidades & Incubación IA
+                  </span>
+                </div>
+                <h3 className="text-xl font-extrabold text-white">
+                  Siembra Digital, Maduración & Bridge E-OmniSync
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Los agentes autónomos de Gemini exploran comercios, extraen datos directos de WhatsApp/Google Maps, validan con Guardrails y permiten cerrar ventas en el ERP o trasplantar a las tiendas.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 shrink-0">
+                <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 text-center min-w-[100px]">
+                  <span className="text-[10px] font-mono uppercase text-zinc-400 block mb-0.5">Sembrados</span>
+                  <span className="text-2xl font-black text-amber-400 font-mono">
+                    {data.kpis.totalLeads ?? 0}
+                  </span>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center min-w-[100px]">
+                  <span className="text-[10px] font-mono uppercase text-emerald-400 block mb-0.5">Maduros (80+)</span>
+                  <span className="text-2xl font-black text-emerald-300 font-mono">
+                    {data.kpis.totalMaduros ?? 0}
+                  </span>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-center min-w-[100px]">
+                  <span className="text-[10px] font-mono uppercase text-purple-400 block mb-0.5">Trasplantados</span>
+                  <span className="text-2xl font-black text-purple-300 font-mono">
+                    {data.kpis.totalTrasplantados ?? 0}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 

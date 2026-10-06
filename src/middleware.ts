@@ -12,7 +12,7 @@ export function middleware(request: NextRequest) {
     'super-admin', 'api', 'login', 'dashboard', 'empresas', 'pedidos', 'ventas',
     'cobranzas', 'facturacion', 'usuarios', 'zonas', 'configuracion', 'crm-web',
     'mensajes', 'planificador', 'visitas', 'visitas-hoy', 'precios-publicos',
-    'reportes-publicos', 'visitas-hoy-caba', 'favicon.ico', '_next', 'static'
+    'reportes-publicos', 'visitas-hoy-caba', 'prospeccion-ia', 'leads', 'favicon.ico', '_next', 'static'
   ])
 
   const isTenantPrefix = Boolean(firstSegment && !RESERVED_ROOT_PATHS.has(firstSegment) && !firstSegment.includes('.'))

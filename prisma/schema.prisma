@@ -17,7 +17,12 @@ model Tenant {
   colorPrimario      String             @default("#3b82f6")
   colorSecundario    String             @default("#1e293b")
   logoUrl            String?
-  tipoModelo         String             @default("SERVICIOS") // "FISICO_TERRENO", "SERVICIOS_DIGITALES", "HIBRIDO"
+  tipoModelo         String             @default("SERVICIOS_DIGITALES") // "FISICO_TERRENO", "SERVICIOS_DIGITALES", "ECOMMERCE", "HIBRIDO"
+  modeloPrincipal    String?            // ej. "MOD-MKT-01", "MOD-REG-01", "MOD-DIST-01"
+  subModelo          String?            // ej. "B2B_CORPORATIVO", "MAYORISTA_TERRENO", "AGENCIA_DIGITAL"
+  nicho              String?            // ej. "Merchandising & Regalos", "Golosinas & Snacks", "Marketing & Web"
+  canalesVenta       Json?              @default("[\"B2B\", \"B2C\"]")
+  bridgeConfig       Json?              @default("{\"eOmniSyncUrl\": \"\", \"syncToken\": \"\", \"autoTransplant\": false, \"activeStoreId\": \"\"}")
   moneda             String             @default("ARS")
   sheetUrl           String?
   sheetUltimaSync    DateTime?
@@ -33,6 +38,10 @@ model Tenant {
   abonosRecurrentes  AbonoRecurrente[]
   zonas              Zona[]
   usuarios           Usuario[]
+  leadsProspectos    LeadProspecto[]
+  campanasMarketing  CampanaMarketing[]
+  agentePromptConfig AgenteIAPromptConfig?
+  metricasAgenteIA   MetricaAgenteIA[]
 }
 
 model Empresa {
@@ -499,3 +508,94 @@ model SolicitudReasignacion {
   estado           String   @default("pendiente")
   creadoEn         DateTime @default(now())
 }
+
+model LeadProspecto {
+  id                     Int       @id @default(autoincrement())
+  tenantId               Int?
+  empresa                String
+  contacto               String?
+  cargo                  String?
+  telefono               String?
+  whatsapp               String?
+  whatsappValidado       Boolean   @default(false)
+  email                  String?
+  emailValidado          Boolean   @default(false)
+  sitioWeb               String?
+  instagram              String?
+  facebook               String?
+  googleMapsUrl          String?
+  direccion              String?
+  latitud                Float?
+  longitud               Float?
+  zona                   String?
+  rubro                  String?
+  nicho                  String?
+  canalInteres           String?   @default("B2B") // "B2B", "B2C", "TERRENO"
+  fuente                 String?   @default("GEMINI_SCRAPER") // "GEMINI_SCRAPER", "GOOGLE_MAPS", "INSTAGRAM", "MANUAL"
+  scoreMadurez           Int       @default(10) // 0 a 100
+  estado                 String    @default("NUEVO") // "NUEVO", "VALIDADO", "EN_CAMPANA", "MADURO", "TRASPLANTADO", "CONVERTIDO_CLIENTE", "DESCARTADO"
+  notas                  String?
+  historialInteracciones Json?     @default("[]")
+  diagnosticoIA          String?
+  trasplantadoA          String?   // Store ID o URL en E-OmniSync
+  fechaTrasplante        DateTime?
+  convertidoEmpresaId    Int?      // ID de Empresa creada en el ERP si cerró venta in-house
+  asignadoAlias          String?
+  creadoEn               DateTime  @default(now())
+  actualizadoEn          DateTime  @updatedAt
+  tenant                 Tenant?   @relation(fields: [tenantId], references: [id])
+}
+
+model CampanaMarketing {
+  id                Int       @id @default(autoincrement())
+  tenantId          Int?
+  nombre            String
+  tipoCanal         String    @default("WHATSAPP") // "WHATSAPP", "EMAIL", "TERRENO", "MULTICANAL"
+  nichoObjetivo     String?
+  mensajeTemplate   String
+  estado            String    @default("BORRADOR") // "BORRADOR", "PROGRAMADA", "EN_EJECUCION", "FINALIZADA", "PAUSADA"
+  totalProspectos   Int       @default(0)
+  totalEnviados     Int       @default(0)
+  totalEntregados   Int       @default(0)
+  totalRespondidos  Int       @default(0)
+  totalConvertidos  Int       @default(0)
+  fechaInicio       DateTime?
+  fechaFin          DateTime?
+  configuracion     Json      @default("{}")
+  creadoPor         String?
+  creadoEn          DateTime  @default(now())
+  actualizadoEn     DateTime  @updatedAt
+  tenant            Tenant?   @relation(fields: [tenantId], references: [id])
+}
+
+model AgenteIAPromptConfig {
+  id                 Int      @id @default(autoincrement())
+  tenantId           Int      @unique
+  nichoId            String   @default("GENERAL")
+  nombreAgente       String   @default("Asistente Comercial OmniSync")
+  tono               String   @default("Profesional, Persuasivo y Orientado a Resultados")
+  directivaSistema   String
+  palabrasClave      Json     @default("[]")
+  criteriosICP       Json     @default("{}") // Ideal Customer Profile
+  guardrailsAntiFuga Json     @default("[]")
+  activo             Boolean  @default(true)
+  creadoEn           DateTime @default(now())
+  actualizadoEn      DateTime @updatedAt
+  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model MetricaAgenteIA {
+  id                 Int      @id @default(autoincrement())
+  tenantId           Int?
+  tipoAccion         String   // "PROSPECCION_PLACES", "PROSPECCION_WEB", "VALIDACION_LEAD", "GENERACION_COPY", "TRASPLANTE_BRIDGE"
+  queryUtilizada     String?
+  leadsEncontrados   Int      @default(0)
+  leadsValidados     Int      @default(0)
+  leadsDescartados   Int      @default(0)
+  tiempoEjecucionMs  Int      @default(0)
+  tokensUsados       Int      @default(0)
+  detalles           Json?    @default("{}")
+  creadoEn           DateTime @default(now())
+  tenant             Tenant?  @relation(fields: [tenantId], references: [id])
+}
+

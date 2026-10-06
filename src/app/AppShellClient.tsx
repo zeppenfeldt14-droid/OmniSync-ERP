@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { 
   LayoutDashboard, Users, Map as MapIcon, FileText, Settings, LogOut, ShieldCheck, 
   ChevronDown, ChevronRight, Plus, Globe, X, ShoppingCart, TrendingUp, Banknote, 
-  Package, Home, Menu, MessageSquare, Laptop, Building2
+  Package, Home, Menu, MessageSquare, Laptop, Building2, Sparkles
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -258,6 +258,17 @@ export function AppShellClient({
             <MessageSquare className="nav-icon text-primary" />
             <span className="font-bold text-white uppercase tracking-wider text-xs">Mensajes</span>
           </Link>
+
+          {/* Granja de Prospección IA (Niveles 1 y 2) */}
+          {user.nivel < 3 && (
+            <Link href="/prospeccion-ia" className={`nav-item ${isLinkActive('/prospeccion-ia') ? 'active' : ''}`}>
+              <Sparkles className="nav-icon text-amber-400" />
+              <span className="font-bold text-amber-300 uppercase tracking-wider text-xs truncate flex items-center justify-between w-full">
+                <span>Granja Leads IA</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">IA</span>
+              </span>
+            </Link>
+          )}
 
           {/* Empresas / Clientes Global (Niveles 1 y 2) */}
           {user.nivel < 3 && (

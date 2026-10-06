@@ -19,7 +19,10 @@ export async function GET() {
       totalProductos,
       totalZonas,
       tenantsList,
-      recentLogs
+      recentLogs,
+      totalLeads,
+      totalMaduros,
+      totalTrasplantados
     ] = await Promise.all([
       prisma.tenant.count(),
       prisma.tenant.count({ where: { activo: true } }),
@@ -34,7 +37,8 @@ export async function GET() {
               empresas: true,
               usuarios: true,
               zonas: true,
-              productos: true
+              productos: true,
+              leadsProspectos: true
             }
           }
         },
@@ -43,7 +47,10 @@ export async function GET() {
       prisma.logBitacora.findMany({
         take: 8,
         orderBy: { creadoEn: 'desc' }
-      }).catch(() => [])
+      }).catch(() => []),
+      prisma.leadProspecto.count().catch(() => 0),
+      prisma.leadProspecto.count({ where: { scoreMadurez: { gte: 80 } } }).catch(() => 0),
+      prisma.leadProspecto.count({ where: { estado: 'TRASPLANTADO' } }).catch(() => 0)
     ])
 
     // Modelo distribution
@@ -65,7 +72,10 @@ export async function GET() {
         totalEmpresas,
         totalUsuarios,
         totalProductos,
-        totalZonas
+        totalZonas,
+        totalLeads,
+        totalMaduros,
+        totalTrasplantados
       },
       modeloStats,
       tenants: tenantsList,
