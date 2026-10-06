@@ -303,7 +303,7 @@ function LoginForm() {
             style={{
               width: '100%',
               padding: '14px',
-              background: isLoading ? '#fb923c' : (isSuperAdminPortal ? '#d97706' : (isVinnaty ? '#7c3aed' : (isGolocinas ? '#2563eb' : '#ea580c'))),
+              background: isLoading ? '#94a3b8' : brandColor,
               color: '#ffffff',
               border: 'none',
               borderRadius: '12px',
